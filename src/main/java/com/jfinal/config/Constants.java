@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.jfinal.config;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.jfinal.aop.AopManager;
 import com.jfinal.captcha.CaptchaManager;
 import com.jfinal.captcha.ICaptchaCache;
 import com.jfinal.core.ActionReporter;
@@ -29,6 +30,8 @@ import com.jfinal.json.JsonManager;
 import com.jfinal.kit.StrKit;
 import com.jfinal.log.ILogFactory;
 import com.jfinal.log.LogManager;
+import com.jfinal.proxy.ProxyFactory;
+import com.jfinal.proxy.ProxyManager;
 import com.jfinal.render.IRenderFactory;
 import com.jfinal.render.RenderManager;
 import com.jfinal.render.ViewType;
@@ -54,6 +57,8 @@ final public class Constants {
 	private ControllerFactory controllerFactory = Const.DEFAULT_CONTROLLER_FACTORY;
 	private int configPluginOrder = Const.DEFAULT_CONFIG_PLUGIN_ORDER;
 	
+	private boolean denyAccessJsp = true;	// 默认拒绝直接访问 jsp 文件
+	
 	private ITokenCache tokenCache = null;
 	
 	/**
@@ -71,11 +76,11 @@ final public class Constants {
 	/**
 	 * 配置 configPlugin(Plugins me) 在 JFinalConfig 中被调用的次序.
 	 * 
-	 * 取值 1、2、3、4、5 分别表示在 configConstant(..)、configRoute(..)、
-	 * configEngine(..)、configInterceptor(..)、configHandler(...)
+	 * 取值 1、2、3、4、5 分别表示在 configConstant(..)、configInterceptor(..)、
+	 * configRoute(..)、configEngine(..)、configHandler(...)
 	 * 之后被调用
 	 * 
-	 * 默认值为 2，那么 configPlugin(..) 将在 configRoute(...) 调用之后被调用
+	 * 默认值为 3，那么 configPlugin(..) 将在 configRoute(...) 调用之后被调用
 	 * @param 取值只能是 1、2、3、4、5
 	 */
 	public void setConfigPluginOrder(int configPluginOrder) {
@@ -132,6 +137,41 @@ final public class Constants {
 	}
 	
 	/**
+	 * 切换到 slf4j 日志框架，需要引入 slf4j 相关依赖
+	 * 切换过去以后的用法参考 slf4j 文档
+	 */
+	public void setToSlf4jLogFactory() {
+		LogManager.me().setToSlf4jLogFactory();
+	}
+	
+	/**
+	 * 配置 ProxyFactory 用于切换代理实现
+	 * <pre>
+	 * 例如：
+	 * me.setProxyFactory(new CglibProxyFactory());
+	 * </pre>
+	 */
+	public void setProxyFactory(ProxyFactory proxyFactory) {
+		ProxyManager.me().setProxyFactory(proxyFactory);
+	}
+	
+	/**
+	 * proxy 模块需要 JDK 环境，如果运行环境为 JRE，可以调用本配置方法支持
+	 * 
+	 * 该配置需要引入 cglib-nodep 依赖：
+	 * <pre>
+	 *   <dependency>
+   	 *     <groupId>cglib</groupId>
+   	 *     <artifactId>cglib-nodep</artifactId>
+   	 *     <version>3.2.5</version>
+	 *   </dependency>
+	 * </pre>
+	 */
+	public void setToCglibProxyFactory() {
+		setProxyFactory(new com.jfinal.ext.proxy.CglibProxyFactory());
+	}
+	
+	/**
 	 * Set encoding. The default encoding is UTF-8.
 	 * @param encoding the encoding
 	 */
@@ -146,6 +186,9 @@ final public class Constants {
 		return encoding;
 	}
 	
+	/**
+	 * 设置自定义的 ControllerFactory 用于创建 Controller 对象
+	 */
 	public void setControllerFactory(ControllerFactory controllerFactory) {
 		if (controllerFactory == null) {
 			throw new IllegalArgumentException("controllerFactory can not be null.");
@@ -155,6 +198,34 @@ final public class Constants {
 	
 	public ControllerFactory getControllerFactory() {
 		return controllerFactory;
+	}
+	
+	/**
+	 * 设置对 Controller、Interceptor、Validator 进行依赖注入，默认值为 false
+	 * 
+	 * 被注入对象默认为 singleton，可以通过 AopManager.me().setSingleton(boolean) 配置
+	 * 该默认值。
+	 * 
+	 * 也可通过在被注入的目标类上使用 Singleton 注解覆盖上述默认值，注解配置
+	 * 优先级高于默认配置
+	 */
+	public void setInjectDependency(boolean injectDependency) {
+		AopManager.me().setInjectDependency(injectDependency);
+	}
+	
+	public boolean getInjectDependency() {
+		return AopManager.me().isInjectDependency();
+	}
+	
+	/**
+	 * 设置是否对超类进行注入
+	 */
+	public void setInjectSuperClass(boolean injectSuperClass) {
+		AopManager.me().setInjectSuperClass(injectSuperClass);
+	}
+	
+	public boolean getInjectSuperClass() {
+		return AopManager.me().isInjectSuperClass();
 	}
 	
 	/**
@@ -349,6 +420,14 @@ final public class Constants {
 	
 	public int getFreeMarkerTemplateUpdateDelay() {
 		return freeMarkerTemplateUpdateDelay;
+	}
+	
+	public void setDenyAccessJsp(boolean denyAccessJsp) {
+		this.denyAccessJsp = denyAccessJsp;
+	}
+	
+	public boolean getDenyAccessJsp() {
+		return denyAccessJsp;
 	}
 }
 

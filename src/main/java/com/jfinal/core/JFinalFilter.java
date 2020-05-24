@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,16 +35,31 @@ import com.jfinal.log.Log;
  */
 public class JFinalFilter implements Filter {
 	
-	private Handler handler;
-	private String encoding;
-	private JFinalConfig jfinalConfig;
-	private Constants constants;
-	private static final JFinal jfinal = JFinal.me();
-	private static Log log;
-	private int contextPathLength;
+	protected JFinalConfig jfinalConfig;
+	protected int contextPathLength;
+	protected Constants constants;
+	protected String encoding;
+	protected Handler handler;
+	protected static Log log;
 	
+	protected static final JFinal jfinal = JFinal.me();
+	
+	public JFinalFilter() {
+		this.jfinalConfig = null;
+	}
+	
+	/**
+	 * 支持 web 项目无需 web.xml 配置文件，便于嵌入式整合 jetty、undertow
+	 */
+	public JFinalFilter(JFinalConfig jfinalConfig) {
+		this.jfinalConfig = jfinalConfig;
+	}
+	
+	@SuppressWarnings("deprecation")
 	public void init(FilterConfig filterConfig) throws ServletException {
-		createJFinalConfig(filterConfig.getInitParameter("configClass"));
+		if (jfinalConfig == null) {
+			createJFinalConfig(filterConfig.getInitParameter("configClass"));
+		}
 		
 		jfinal.init(jfinalConfig, filterConfig.getServletContext());
 		
@@ -53,6 +68,8 @@ public class JFinalFilter implements Filter {
 		
 		constants = Config.getConstants();
 		encoding = constants.getEncoding();
+		
+		jfinalConfig.onStart();
 		jfinalConfig.afterJFinalStart();
 		
 		handler = jfinal.getHandler();		// 开始接受请求
@@ -80,37 +97,64 @@ public class JFinalFilter implements Filter {
 		}
 		
 		if (isHandled[0] == false) {
+			// 默认拒绝直接访问 jsp 文件，加固 tomcat、jetty 安全性
+			if (constants.getDenyAccessJsp() && isJsp(target)) {
+				com.jfinal.kit.HandlerKit.renderError404(request, response, isHandled);
+				return ;
+			}
+			
 			chain.doFilter(request, response);
 		}
 	}
 	
+	@SuppressWarnings("deprecation")
 	public void destroy() {
 		handler = null;		// 停止接受请求
 		
+		jfinalConfig.onStop();
 		jfinalConfig.beforeJFinalStop();
+		
 		jfinal.stopPlugins();
 	}
 	
 	protected void createJFinalConfig(String configClass) {
 		if (configClass == null) {
-			throw new RuntimeException("Please set configClass parameter of JFinalFilter in web.xml");
+			throw new RuntimeException("The configClass parameter of JFinalFilter can not be blank");
 		}
 		
-		Object temp = null;
 		try {
-			temp = Class.forName(configClass).newInstance();
-		} catch (Exception e) {
-			throw new RuntimeException("Can not create instance of class: " + configClass, e);
-		}
-		
-		if (temp instanceof JFinalConfig) {
+			Object temp = Class.forName(configClass).newInstance();
 			jfinalConfig = (JFinalConfig)temp;
-		} else {
-			throw new RuntimeException("Can not create instance of class: " + configClass + ". Please check the config in web.xml");
+		} catch (ReflectiveOperationException e) {
+			throw new RuntimeException("Can not create instance of class: " + configClass, e);
 		}
 	}
 	
 	static void initLog() {
 		log = Log.getLog(JFinalFilter.class);
+	}
+	
+	boolean isJsp(String t) {
+		char c;
+		int end = t.length() - 1;
+		
+		if ( (end > 3) && ((c = t.charAt(end)) == 'x' || c == 'X') ) {
+			end--;
+		}
+		
+		if ( (end > 2) && ((c = t.charAt(end)) == 'p' || c == 'P') ) {
+			end--;
+			if ( (end > 1) && ((c = t.charAt(end)) == 's' || c == 'S') ) {
+				end--;
+				if ( (end > 0) && ((c = t.charAt(end)) == 'j' || c == 'J') ) {
+					end--;
+					if ( (end > -1) && ((c = t.charAt(end)) == '.') ) {
+						return true;
+					}
+				}
+			}
+		}
+		
+		return false;
 	}
 }

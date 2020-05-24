@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,21 @@
 package com.jfinal.plugin.activerecord.generator;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.List;
 import com.jfinal.kit.Kv;
 import com.jfinal.kit.LogKit;
 import com.jfinal.kit.StrKit;
 import com.jfinal.template.Engine;
-import com.jfinal.template.source.ClassPathSourceFactory;
 
 /**
  * MappingKit 文件生成器
  */
 public class MappingKitGenerator {
 	
+	protected Engine engine;
 	protected String template = "/com/jfinal/plugin/activerecord/generator/mapping_kit_template.jf";
 	
 	protected String mappingKitPackageName;
@@ -40,6 +41,14 @@ public class MappingKitGenerator {
 	public MappingKitGenerator(String mappingKitPackageName, String mappingKitOutputDir) {
 		this.mappingKitPackageName = mappingKitPackageName;
 		this.mappingKitOutputDir = mappingKitOutputDir;
+		
+		initEngine();
+	}
+	
+	protected void initEngine() {
+		engine = new Engine();
+		engine.setToClassPathSourceFactory();
+		engine.addSharedMethod(new StrKit());
 	}
 	
 	/**
@@ -55,10 +64,18 @@ public class MappingKitGenerator {
 		}
 	}
 	
+	public String getMappingKitOutputDir() {
+		return mappingKitOutputDir;
+	}
+	
 	public void setMappingKitPackageName(String mappingKitPackageName) {
 		if (StrKit.notBlank(mappingKitPackageName)) {
 			this.mappingKitPackageName = mappingKitPackageName;
 		}
+	}
+	
+	public String getMappingKitPackageName() {
+		return mappingKitPackageName;
 	}
 	
 	public void setMappingKitClassName(String mappingKitClassName) {
@@ -67,13 +84,13 @@ public class MappingKitGenerator {
 		}
 	}
 	
+	public String getMappingKitClassName() {
+		return mappingKitClassName;
+	}
+	
 	public void generate(List<TableMeta> tableMetas) {
 		System.out.println("Generate MappingKit file ...");
 		System.out.println("MappingKit Output Dir: " + mappingKitOutputDir);
-		
-		Engine engine = Engine.create("forMappingKit");
-		engine.setSourceFactory(new ClassPathSourceFactory());
-		engine.addSharedMethod(new StrKit());
 		
 		Kv data = Kv.by("mappingKitPackageName", mappingKitPackageName);
 		data.set("mappingKitClassName", mappingKitClassName);
@@ -87,23 +104,23 @@ public class MappingKitGenerator {
 	 * _MappingKit.java 覆盖写入
 	 */
 	protected void writeToFile(String ret) {
-		FileWriter fw = null;
+		File dir = new File(mappingKitOutputDir);
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
+		
+		String target = mappingKitOutputDir + File.separator + mappingKitClassName + ".java";
+		OutputStreamWriter osw = null;
 		try {
-			File dir = new File(mappingKitOutputDir);
-			if (!dir.exists()) {
-				dir.mkdirs();
-			}
-			
-			String target = mappingKitOutputDir + File.separator + mappingKitClassName + ".java";
-			fw = new FileWriter(target);
-			fw.write(ret);
+			osw = new OutputStreamWriter(new FileOutputStream(target), "UTF-8");
+			osw.write(ret);
 		}
 		catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 		finally {
-			if (fw != null) {
-				try {fw.close();} catch (IOException e) {LogKit.error(e.getMessage(), e);}
+			if (osw != null) {
+				try {osw.close();} catch (IOException e) {LogKit.error(e.getMessage(), e);}
 			}
 		}
 	}

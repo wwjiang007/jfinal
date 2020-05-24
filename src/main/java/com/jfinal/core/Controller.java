@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import com.jfinal.aop.Enhancer;
-import com.jfinal.aop.Interceptor;
 import com.jfinal.core.converter.TypeConverter;
+import com.jfinal.kit.Kv;
 import com.jfinal.kit.StrKit;
 import com.jfinal.render.ContentType;
 import com.jfinal.render.JsonRender;
@@ -55,6 +54,7 @@ public abstract class Controller {
 	
 	private String urlPara;
 	private String[] urlParaArray;
+	private String rawData;
 	
 	private Render render;
 	
@@ -63,7 +63,7 @@ public abstract class Controller {
 	private static final String[] NULL_URL_PARA_ARRAY = new String[0];
 	private static final String URL_PARA_SEPARATOR = Config.getConstants().getUrlParaSeparator();
 	
-	void init(Action action, HttpServletRequest request, HttpServletResponse response, String urlPara) {
+	void _init_(Action action, HttpServletRequest request, HttpServletResponse response, String urlPara) {
 		this.action = action;
 		this.request = request;
 		this.response = response;
@@ -72,13 +72,34 @@ public abstract class Controller {
 		render = null;
 	}
 	
-	void clear() {
+	/**
+	 * 在对 Controller 回收使用场景下，如果继承类中声明了属性，则必须要
+	 * 覆盖此方法，调用父类的 clear() 方法并清掉自身的属性，例如：
+	 * 
+	 * super._clear_();
+	 * this.xxx = null;
+	 */
+	protected void _clear_() {
 		action = null;
 		request = null;
 		response = null;
 		urlPara = null;
 		urlParaArray = null;
 		render = null;
+		rawData = null;
+	}
+	
+	/**
+	 * 获取 http 请求 body 中的原始数据，通常用于接收 json String 这类数据<br>
+	 * 可多次调用此方法，避免掉了 HttpKit.readData(...) 方式获取该数据时多次调用
+	 * 引发的异常
+	 * @return http 请求 body 中的原始数据
+	 */
+	public String getRawData() {
+		if (rawData == null) {
+			rawData = com.jfinal.kit.HttpKit.readData(request);
+		}
+		return rawData;
 	}
 	
 	public String getControllerKey() {
@@ -143,7 +164,9 @@ public abstract class Controller {
 	 * @return a String representing the single value of the parameter
 	 */
 	public String getPara(String name) {
-		return request.getParameter(name);
+		// return request.getParameter(name);
+		String result = request.getParameter(name);
+		return "".equals(result) ? null : result;
 	}
 	
 	/**
@@ -196,21 +219,25 @@ public abstract class Controller {
 	 */
 	public Integer[] getParaValuesToInt(String name) {
 		String[] values = request.getParameterValues(name);
-		if (values == null)
+		if (values == null || values.length == 0) {
 			return null;
+		}
 		Integer[] result = new Integer[values.length];
-		for (int i=0; i<result.length; i++)
-			result[i] = Integer.parseInt(values[i]);
+		for (int i=0; i<result.length; i++) {
+			result[i] = StrKit.isBlank(values[i]) ? null : Integer.parseInt(values[i]);
+		}
 		return result;
 	}
 	
 	public Long[] getParaValuesToLong(String name) {
 		String[] values = request.getParameterValues(name);
-		if (values == null)
+		if (values == null || values.length == 0) {
 			return null;
+		}
 		Long[] result = new Long[values.length];
-		for (int i=0; i<result.length; i++)
-			result[i] = Long.parseLong(values[i]);
+		for (int i=0; i<result.length; i++) {
+			result[i] = StrKit.isBlank(values[i]) ? null : Long.parseLong(values[i]);
+		}
 		return result;
 	}
 	
@@ -380,7 +407,10 @@ public abstract class Controller {
 		try {
 			if (StrKit.isBlank(value))
 				return defaultValue;
-			return new java.text.SimpleDateFormat("yyyy-MM-dd").parse(value.trim());
+			
+			// return new java.text.SimpleDateFormat("yyyy-MM-dd").parse(value.trim());
+			return (Date)TypeConverter.me().convert(Date.class, value);
+			
 		} catch (Exception e) {
 			throw new ActionException(400, renderManager.getRenderFactory().getErrorRender(400),  "Can not parse the parameter \"" + value + "\" to Date value.");
 		}
@@ -766,6 +796,24 @@ public abstract class Controller {
 		return (T)Injector.injectBean(beanClass, beanName, request, skipConvertError);
 	}
 	
+	/**
+	 * 获取被 Kv 封装后的参数，便于使用 Kv 中的一些工具方法
+	 * 
+	 * 由于 Kv 继承自 HashMap，也便于需要使用 HashMap 的场景，
+	 * 例如：
+	 * Record record = new Record().setColumns(getKv());
+	 */
+	public Kv getKv() {
+		Kv kv = new Kv();
+		Map<String, String[]> paraMap = request.getParameterMap();
+		for (Entry<String, String[]> entry : paraMap.entrySet()) {
+			String[] values = entry.getValue();
+			String value = (values != null && values.length > 0) ? values[0] : null;
+			kv.put(entry.getKey(), "".equals(value) ? null : value);
+		}
+		return kv;
+	}
+	
 	// TODO public <T> List<T> getModels(Class<T> modelClass, String modelName) {}
 	
 	// --------
@@ -1097,9 +1145,15 @@ public abstract class Controller {
 	}
 	
 	/**
-	 * Render with text and content type.
-	 * <p>
-	 * Example: renderText("&lt;user id='5888'&gt;James&lt;/user&gt;", "application/xml");
+	 * 响应 text 文本并指定 content type，例如: "text/xml"、"application/javascript"
+	 * 
+	 * 其中 "text/xml"、"application/javascript"、"application/json"、"text/html"
+	 * 从 jfinal 4.6 版本开始可以简写为 "xml"、"js"、"json"、"html"
+	 * 
+	 * <pre>
+	 * 例子：
+	 *    renderText("&lt;user id='5888'&gt;James&lt;/user&gt;", "xml");
+	 * </pre>
 	 */
 	public void renderText(String text, String contentType) {
 		render = renderManager.getRenderFactory().getTextRender(text, contentType);
@@ -1228,7 +1282,7 @@ public abstract class Controller {
 	}
 	
 	/**
-	 * Render with xml view using freemarker.
+	 * Render with xml view using enjoy template.
 	 */
 	public void renderXml(String view) {
 		render = renderManager.getRenderFactory().getXmlRender(view);
@@ -1280,76 +1334,127 @@ public abstract class Controller {
 	
 	// ---------
 	
-	public <T> T enhance(Class<T> targetClass) {
-		return (T)Enhancer.enhance(targetClass);
+	/*
+	 * 获取 Aop 代理对象，便于在 action 方法内部调用，可以取代 @Inject 注入
+	 * 
+	 * <pre>
+	 * 如果控制器中使用了多个 @Inject 注入了多个业务对象，但在该控制器中的有些
+	 * action 中，并没有用到或者用到少量的 @Inject 注入的业务对象，就会造成浪费，
+	 * 因为控制器中的所有 @Inject 属性不管在 action 中有没有被使用，都会被注入
+	 * 
+	 * 
+	 * 在上述场景下，可以使用 getAopProxy(...) 来取代 @Inject 注入，例如：
+	 * public void action() {
+	 *    Service service c = getAopProxy(Service.class);
+	 *    service.justDoIt();
+	 * }
+	 * </pre>
+	
+	public <T> T getAopProxy(Class<T> targetClass) {
+		return com.jfinal.aop.Aop.get(targetClass);
+	} */
+	
+	// --------------------
+	
+	/**
+	 * 为了进一步省代码，创建与 setAttr(...) 功能一模一样的缩短版本 set(...)
+	 */
+	public Controller set(String attributeName, Object attributeValue) {
+		request.setAttribute(attributeName, attributeValue);
+		return this;
 	}
 	
-	public <T> T enhance(Class<T> targetClass, Interceptor... injectInters) {
-		return (T)Enhancer.enhance(targetClass, injectInters);
+	// --- 以下是为了省代码，为 getPara 系列方法创建的缩短版本
+	
+	public String get(String name) {
+		return getPara(name);
 	}
 	
-	public <T> T enhance(Class<T> targetClass, Class<? extends Interceptor>... injectIntersClasses) {
-		return (T)Enhancer.enhance(targetClass, injectIntersClasses);
+	public String get(String name, String defaultValue) {
+		return getPara(name, defaultValue);
 	}
 	
-	public <T> T enhance(Class<T> targetClass, Class<? extends Interceptor> injectIntersClass) {
-		return (T)Enhancer.enhance(targetClass, injectIntersClass);
+	public Integer getInt(String name) {
+		return getParaToInt(name);
 	}
 	
-	public <T> T enhance(Class<T> targetClass, Class<? extends Interceptor> injectIntersClass1, Class<? extends Interceptor> injectIntersClass2) {
-		return (T)Enhancer.enhance(targetClass, injectIntersClass1, injectIntersClass2);
+	public Integer getInt(String name, Integer defaultValue) {
+		return getParaToInt(name, defaultValue);
 	}
 	
-	public <T> T enhance(Class<T> targetClass, Class<? extends Interceptor> injectIntersClass1, Class<? extends Interceptor> injectIntersClass2, Class<? extends Interceptor> injectIntersClass3) {
-		return (T)Enhancer.enhance(targetClass, injectIntersClass1, injectIntersClass2, injectIntersClass3);
+	public Long getLong(String name) {
+		return getParaToLong(name);
 	}
 	
-	public <T> T enhance(String singletonKey, Class<T> targetClass) {
-		return (T)Enhancer.enhance(singletonKey, targetClass);
+	public Long getLong(String name, Long defaultValue) {
+		return getParaToLong(name, defaultValue);
 	}
 	
-	public <T> T enhance(String singletonKey, Class<T> targetClass, Interceptor... injectInters) {
-		return (T)Enhancer.enhance(singletonKey, targetClass, injectInters);
+	public Boolean getBoolean(String name) {
+		return getParaToBoolean(name);
 	}
 	
-	public <T> T enhance(String singletonKey, Class<T> targetClass, Class<? extends Interceptor>... injectIntersClasses) {
-		return (T)Enhancer.enhance(singletonKey, targetClass, injectIntersClasses);
+	public Boolean getBoolean(String name, Boolean defaultValue) {
+		return getParaToBoolean(name, defaultValue);
 	}
 	
-	public <T> T enhance(Object target) {
-		return (T)Enhancer.enhance(target);
+	public Date getDate(String name) {
+		return getParaToDate(name);
 	}
 	
-	public <T> T enhance(Object target, Interceptor... injectInters) {
-		return (T)Enhancer.enhance(target, injectInters);
+	public Date getDate(String name, Date defaultValue) {
+		return getParaToDate(name, defaultValue);
 	}
 	
-	public <T> T enhance(Object target, Class<? extends Interceptor>... injectIntersClasses) {
-		return (T)Enhancer.enhance(target, injectIntersClasses);
+	// --- 以下是 getPara 系列中获取 urlPara 的缩短版本
+	
+	/* 为了让继承类可以使用名为 get 的 action 注掉此方法，可使用 get(-1) 来实现本方法的功能
+	public String get() {
+		return getPara();
+	} */
+	
+	public String get(int index) {
+		return getPara(index);
 	}
 	
-	public <T> T enhance(Object target, Class<? extends Interceptor> injectIntersClass) {
-		return (T)Enhancer.enhance(target, injectIntersClass);
+	public String get(int index, String defaultValue) {
+		return getPara(index, defaultValue);
 	}
 	
-	public <T> T enhance(Object target, Class<? extends Interceptor> injectIntersClass1, Class<? extends Interceptor> injectIntersClass2) {
-		return (T)Enhancer.enhance(target, injectIntersClass1, injectIntersClass2);
+	public Integer getInt() {
+		return getParaToInt();
 	}
 	
-	public <T> T enhance(Object target, Class<? extends Interceptor> injectIntersClass1, Class<? extends Interceptor> injectIntersClass2, Class<? extends Interceptor> injectIntersClass3) {
-		return (T)Enhancer.enhance(target, injectIntersClass1, injectIntersClass2, injectIntersClass3);
+	public Integer getInt(int index) {
+		return getParaToInt(index);
 	}
 	
-	public <T> T enhance(String singletonKey, Object target) {
-		return (T)Enhancer.enhance(singletonKey, target);
+	public Integer getInt(int index, Integer defaultValue) {
+		return getParaToInt(index, defaultValue);
 	}
 	
-	public <T> T enhance(String singletonKey, Object target, Interceptor... injectInters) {
-		return (T)Enhancer.enhance(singletonKey, target, injectInters);
+	public Long getLong() {
+		return getParaToLong();
 	}
 	
-	public <T> T enhance(String singletonKey, Object target, Class<? extends Interceptor>... injectIntersClasses) {
-		return (T)Enhancer.enhance(singletonKey, target, injectIntersClasses);
+	public Long getLong(int index) {
+		return getParaToLong(index);
+	}
+	
+	public Long getLong(int index, Long defaultValue) {
+		return getParaToLong(index, defaultValue);
+	}
+	
+	public Boolean getBoolean() {
+		return getParaToBoolean();
+	}
+	
+	public Boolean getBoolean(int index) {
+		return getParaToBoolean(index);
+	}
+	
+	public Boolean getBoolean(int index, Boolean defaultValue) {
+		return getParaToBoolean(index, defaultValue);
 	}
 }
 

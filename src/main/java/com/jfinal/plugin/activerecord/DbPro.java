@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,22 +39,6 @@ public class DbPro {
 	
 	protected final Config config;
 	
-	/**
-	 * 建议用 Db.use(configName) 代替，未来版本会去除该方法
-	 */
-	@Deprecated
-	public static DbPro use(String configName) {
-		return Db.use(configName);
-	}
-	
-	/**
-	 * 建议用 Db.use() 代替，未来版本会去除该方法
-	 */
-	@Deprecated
-	public static DbPro use() {
-		return Db.use();
-	}
-	
 	public DbPro() {
 		if (DbKit.config == null) {
 			throw new RuntimeException("The main config is null, initialize ActiveRecordPlugin first");
@@ -73,7 +57,7 @@ public class DbPro {
 		return config;
 	}
 	
-	<T> List<T> query(Config config, Connection conn, String sql, Object... paras) throws SQLException {
+	protected <T> List<T> query(Config config, Connection conn, String sql, Object... paras) throws SQLException {
 		List result = new ArrayList();
 		PreparedStatement pst = conn.prepareStatement(sql);
 		config.dialect.fillStatement(pst, paras);
@@ -288,7 +272,7 @@ public class DbPro {
 	/**
 	 * Execute sql update
 	 */
-	int update(Config config, Connection conn, String sql, Object... paras) throws SQLException {
+	protected int update(Config config, Connection conn, String sql, Object... paras) throws SQLException {
 		PreparedStatement pst = conn.prepareStatement(sql);
 		config.dialect.fillStatement(pst, paras);
 		int result = pst.executeUpdate();
@@ -324,7 +308,7 @@ public class DbPro {
 		return update(sql, NULL_PARA_ARRAY);
 	}
 	
-	List<Record> find(Config config, Connection conn, String sql, Object... paras) throws SQLException {
+	protected List<Record> find(Config config, Connection conn, String sql, Object... paras) throws SQLException {
 		PreparedStatement pst = conn.prepareStatement(sql);
 		config.dialect.fillStatement(pst, paras);
 		ResultSet rs = pst.executeQuery();
@@ -356,6 +340,11 @@ public class DbPro {
 		return find(sql, NULL_PARA_ARRAY);
 	}
 	
+	public List<Record> findAll(String tableName) {
+		String sql = config.dialect.forFindAll(tableName);
+		return find(sql, NULL_PARA_ARRAY);
+	}
+	
 	/**
 	 * Find first record. I recommend add "limit 1" in your sql.
 	 * @param sql an SQL statement that may contain one or more '?' IN parameter placeholders
@@ -379,33 +368,37 @@ public class DbPro {
 	 * Find record by id with default primary key.
 	 * <pre>
 	 * Example:
-	 * Record user = DbPro.use().findById("user", 15);
+	 * Record user = Db.use().findById("user", 15);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param idValue the id value of the record
 	 */
 	public Record findById(String tableName, Object idValue) {
-		return findById(tableName, config.dialect.getDefaultPrimaryKey(), idValue);
+		return findByIds(tableName, config.dialect.getDefaultPrimaryKey(), idValue);
+	}
+	
+	public Record findById(String tableName, String primaryKey, Object idValue) {
+		return findByIds(tableName, primaryKey, idValue);
 	}
 	
 	/**
-	 * Find record by id.
+	 * Find record by ids.
 	 * <pre>
 	 * Example:
-	 * Record user = DbPro.use().findById("user", "user_id", 123);
-	 * Record userRole = DbPro.use().findById("user_role", "user_id, role_id", 123, 456);
+	 * Record user = Db.use().findByIds("user", "user_id", 123);
+	 * Record userRole = Db.use().findByIds("user_role", "user_id, role_id", 123, 456);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
-	 * @param idValue the id value of the record, it can be composite id values
+	 * @param idValues the id value of the record, it can be composite id values
 	 */
-	public Record findById(String tableName, String primaryKey, Object... idValue) {
+	public Record findByIds(String tableName, String primaryKey, Object... idValues) {
 		String[] pKeys = primaryKey.split(",");
-		if (pKeys.length != idValue.length)
+		if (pKeys.length != idValues.length)
 			throw new IllegalArgumentException("primary key number must equals id value number");
 		
 		String sql = config.dialect.forDbFindById(tableName, pKeys);
-		List<Record> result = find(sql, idValue);
+		List<Record> result = find(sql, idValues);
 		return result.size() > 0 ? result.get(0) : null;
 	}
 	
@@ -413,42 +406,46 @@ public class DbPro {
 	 * Delete record by id with default primary key.
 	 * <pre>
 	 * Example:
-	 * DbPro.use().deleteById("user", 15);
+	 * Db.use().deleteById("user", 15);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param idValue the id value of the record
 	 * @return true if delete succeed otherwise false
 	 */
 	public boolean deleteById(String tableName, Object idValue) {
-		return deleteById(tableName, config.dialect.getDefaultPrimaryKey(), idValue);
+		return deleteByIds(tableName, config.dialect.getDefaultPrimaryKey(), idValue);
+	}
+	
+	public boolean deleteById(String tableName, String primaryKey, Object idValue) {
+		return deleteByIds(tableName, primaryKey, idValue);
 	}
 	
 	/**
-	 * Delete record by id.
+	 * Delete record by ids.
 	 * <pre>
 	 * Example:
-	 * DbPro.use().deleteById("user", "user_id", 15);
-	 * DbPro.use().deleteById("user_role", "user_id, role_id", 123, 456);
+	 * Db.use().deleteByIds("user", "user_id", 15);
+	 * Db.use().deleteByIds("user_role", "user_id, role_id", 123, 456);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
-	 * @param idValue the id value of the record, it can be composite id values
+	 * @param idValues the id value of the record, it can be composite id values
 	 * @return true if delete succeed otherwise false
 	 */
-	public boolean deleteById(String tableName, String primaryKey, Object... idValue) {
+	public boolean deleteByIds(String tableName, String primaryKey, Object... idValues) {
 		String[] pKeys = primaryKey.split(",");
-		if (pKeys.length != idValue.length)
+		if (pKeys.length != idValues.length)
 			throw new IllegalArgumentException("primary key number must equals id value number");
 		
 		String sql = config.dialect.forDbDeleteById(tableName, pKeys);
-		return update(sql, idValue) >= 1;
+		return update(sql, idValues) >= 1;
 	}
 	
 	/**
 	 * Delete record.
 	 * <pre>
 	 * Example:
-	 * boolean succeed = DbPro.use().delete("user", "id", user);
+	 * boolean succeed = Db.use().delete("user", "id", user);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
@@ -457,8 +454,10 @@ public class DbPro {
 	 */
 	public boolean delete(String tableName, String primaryKey, Record record) {
 		String[] pKeys = primaryKey.split(",");
-		if (pKeys.length <= 1)
-			return deleteById(tableName, primaryKey, record.get(primaryKey));
+		if (pKeys.length <= 1) {
+			Object t = record.get(primaryKey);	// 引入中间变量避免 JDK 8 传参有误
+			return deleteByIds(tableName, primaryKey, t);
+		}
 		
 		config.dialect.trimPrimaryKeys(pKeys);
 		Object[] idValue = new Object[pKeys.length];
@@ -467,19 +466,20 @@ public class DbPro {
 			if (idValue[i] == null)
 				throw new IllegalArgumentException("The value of primary key \"" + pKeys[i] + "\" can not be null in record object");
 		}
-		return deleteById(tableName, primaryKey, idValue);
+		return deleteByIds(tableName, primaryKey, idValue);
 	}
 	
 	/**
 	 * <pre>
 	 * Example:
-	 * boolean succeed = DbPro.use().delete("user", user);
+	 * boolean succeed = Db.use().delete("user", user);
 	 * </pre>
 	 * @see #delete(String, String, Record)
 	 */
 	public boolean delete(String tableName, Record record) {
 		String defaultPrimaryKey = config.dialect.getDefaultPrimaryKey();
-		return deleteById(tableName, defaultPrimaryKey, record.get(defaultPrimaryKey));
+		Object t = record.get(defaultPrimaryKey);	// 引入中间变量避免 JDK 8 传参有误
+		return deleteByIds(tableName, defaultPrimaryKey, t);
 	}
 	
 	/**
@@ -579,7 +579,7 @@ public class DbPro {
 		return new Page<Record>(list, pageNumber, pageSize, totalPage, (int)totalRow);
 	}
 	
-	Page<Record> paginate(Config config, Connection conn, int pageNumber, int pageSize, String select, String sqlExceptSelect, Object... paras) throws SQLException {
+	protected Page<Record> paginate(Config config, Connection conn, int pageNumber, int pageSize, String select, String sqlExceptSelect, Object... paras) throws SQLException {
 		String totalRowSql = "select count(*) " + config.dialect.replaceOrderBy(sqlExceptSelect);
 		StringBuilder findSql = new StringBuilder();
 		findSql.append(select).append(' ').append(sqlExceptSelect);
@@ -607,7 +607,7 @@ public class DbPro {
 		return doPaginateByFullSql(pageNumber, pageSize, isGroupBySql, totalRowSql, findSql, paras);
 	}
 	
-	boolean save(Config config, Connection conn, String tableName, String primaryKey, Record record) throws SQLException {
+	protected boolean save(Config config, Connection conn, String tableName, String primaryKey, Record record) throws SQLException {
 		String[] pKeys = primaryKey.split(",");
 		List<Object> paras = new ArrayList<Object>();
 		StringBuilder sql = new StringBuilder();
@@ -631,7 +631,7 @@ public class DbPro {
 	 * <pre>
 	 * Example:
 	 * Record userRole = new Record().set("user_id", 123).set("role_id", 456);
-	 * DbPro.use().save("user_role", "user_id, role_id", userRole);
+	 * Db.use().save("user_role", "user_id, role_id", userRole);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
@@ -657,7 +657,7 @@ public class DbPro {
 		return save(tableName, config.dialect.getDefaultPrimaryKey(), record);
 	}
 	
-	boolean update(Config config, Connection conn, String tableName, String primaryKey, Record record) throws SQLException {
+	protected boolean update(Config config, Connection conn, String tableName, String primaryKey, Record record) throws SQLException {
 		String[] pKeys = primaryKey.split(",");
 		Object[] ids = new Object[pKeys.length];
 		
@@ -682,7 +682,7 @@ public class DbPro {
 	 * Update Record.
 	 * <pre>
 	 * Example:
-	 * DbPro.use().update("user_role", "user_id, role_id", record);
+	 * Db.use().update("user_role", "user_id, role_id", record);
 	 * </pre>
 	 * @param tableName the table name of the Record save to
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
@@ -705,7 +705,7 @@ public class DbPro {
 	 * Update record with default primary key.
 	 * <pre>
 	 * Example:
-	 * DbPro.use().update("user", record);
+	 * Db.use().update("user", record);
 	 * </pre>
 	 * @see #update(String, String, Record)
 	 */
@@ -725,7 +725,7 @@ public class DbPro {
 	 * @param config the Config object
 	 * @param callback the ICallback interface
 	 */
-	Object execute(Config config, ICallback callback) {
+	protected Object execute(Config config, ICallback callback) {
 		Connection conn = null;
 		try {
 			conn = config.getConnection();
@@ -744,7 +744,7 @@ public class DbPro {
 	 * @param atom the atom operation
 	 * @return true if transaction executing succeed otherwise false
 	 */
-	boolean tx(Config config, int transactionLevel, IAtom atom) {
+	protected boolean tx(Config config, int transactionLevel, IAtom atom) {
 		Connection conn = config.getThreadLocalConnection();
 		if (conn != null) {	// Nested transaction support
 			try {
@@ -926,11 +926,13 @@ public class DbPro {
 					result[pointer++] = r[k];
 			}
 		}
-		int[] r = pst.executeBatch();
-		if (isInTransaction == false)
-			conn.commit();
-		for (int k=0; k<r.length; k++)
-			result[pointer++] = r[k];
+		if (counter != 0) {
+			int[] r = pst.executeBatch();
+			if (isInTransaction == false)
+				conn.commit();
+			for (int k = 0; k < r.length; k++)
+				result[pointer++] = r[k];
+		}
 		DbKit.close(pst);
 		return result;
 	}
@@ -940,7 +942,7 @@ public class DbPro {
      * <pre>
      * Example:
      * String sql = "insert into user(name, cash) values(?, ?)";
-     * int[] result = DbPro.use().batch(sql, new Object[][]{{"James", 888}, {"zhanjin", 888}});
+     * int[] result = Db.use().batch(sql, new Object[][]{{"James", 888}, {"zhanjin", 888}});
      * </pre>
      * @param sql The SQL to execute.
      * @param paras An array of query replacement parameters.  Each row in this array is one set of batch replacement values.
@@ -1012,11 +1014,13 @@ public class DbPro {
 					result[pointer++] = r[k];
 			}
 		}
-		int[] r = pst.executeBatch();
-		if (isInTransaction == false)
-			conn.commit();
-		for (int k=0; k<r.length; k++)
-			result[pointer++] = r[k];
+		if (counter != 0) {
+			int[] r = pst.executeBatch();
+			if (isInTransaction == false)
+				conn.commit();
+			for (int k = 0; k < r.length; k++)
+				result[pointer++] = r[k];
+		}
 		DbKit.close(pst);
 		return result;
 	}
@@ -1026,7 +1030,7 @@ public class DbPro {
      * <pre>
      * Example:
      * String sql = "insert into user(name, cash) values(?, ?)";
-     * int[] result = DbPro.use().batch(sql, "name, cash", modelList, 500);
+     * int[] result = Db.use().batch(sql, "name, cash", modelList, 500);
      * </pre>
 	 * @param sql The SQL to execute.
 	 * @param columns the columns need be processed by sql.
@@ -1074,11 +1078,13 @@ public class DbPro {
 					result[pointer++] = r[k];
 			}
 		}
-		int[] r = st.executeBatch();
-		if (isInTransaction == false)
-			conn.commit();
-		for (int k=0; k<r.length; k++)
-			result[pointer++] = r[k];
+		if (counter != 0) {
+			int[] r = st.executeBatch();
+			if (isInTransaction == false)
+				conn.commit();
+			for (int k = 0; k < r.length; k++)
+				result[pointer++] = r[k];
+		}
 		DbKit.close(st);
 		return result;
 	}
@@ -1087,7 +1093,7 @@ public class DbPro {
      * Execute a batch of SQL INSERT, UPDATE, or DELETE queries.
      * <pre>
      * Example:
-     * int[] result = DbPro.use().batch(sqlList, 500);
+     * int[] result = Db.use().batch(sqlList, 500);
      * </pre>
 	 * @param sqlList The SQL list to execute.
 	 * @param batchSize batch size.
@@ -1271,7 +1277,15 @@ public class DbPro {
     public SqlPara getSqlPara(String key, Object... paras) {
     	return config.getSqlKit().getSqlPara(key, paras);
     }
-    
+	
+	public SqlPara getSqlParaByString(String content, Map data) {
+		return config.getSqlKit().getSqlParaByString(content, data);
+	}
+	
+	public SqlPara getSqlParaByString(String content, Object... paras) {
+		return config.getSqlKit().getSqlParaByString(content, paras);
+	}
+	
     public List<Record> find(SqlPara sqlPara) {
     	return find(sqlPara.getSql(), sqlPara.getPara());
     }
@@ -1288,6 +1302,31 @@ public class DbPro {
     	String[] sqls = PageSqlKit.parsePageSql(sqlPara.getSql());
     	return doPaginate(pageNumber, pageSize, null, sqls[0], sqls[1], sqlPara.getPara());
     }
+	
+	public Page<Record> paginate(int pageNumber, int pageSize, boolean isGroupBySql, SqlPara sqlPara) {
+		String[] sqls = PageSqlKit.parsePageSql(sqlPara.getSql());
+		return doPaginate(pageNumber, pageSize, isGroupBySql, sqls[0], sqls[1], sqlPara.getPara());
+	}
+	
+	// ---------
+	
+	public DbTemplate template(String key, Map data) {
+		return new DbTemplate(this, key, data);
+	}
+	
+	public DbTemplate template(String key, Object... paras) {
+		return new DbTemplate(this, key, paras);
+	}
+	
+	// ---------
+	
+	public DbTemplate templateByString(String content, Map data) {
+		return new DbTemplate(true, this, content, data);
+	}
+	
+	public DbTemplate templateByString(String content, Object... paras) {
+		return new DbTemplate(true, this, content, paras);
+	}
 }
 
 

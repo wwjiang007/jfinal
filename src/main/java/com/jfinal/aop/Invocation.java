@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@ package com.jfinal.aop;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import com.jfinal.proxy.Callback;
+import com.jfinal.proxy.ProxyMethod;
+import com.jfinal.proxy.ProxyMethodCache;
 import com.jfinal.core.Action;
 import com.jfinal.core.Controller;
-import net.sf.cglib.proxy.MethodProxy;
 
 /**
  * Invocation is used to invoke the interceptors and the target method
@@ -28,18 +30,47 @@ import net.sf.cglib.proxy.MethodProxy;
 @SuppressWarnings("unchecked")
 public class Invocation {
 	
-	private Action action;
-	private static final Object[] NULL_ARGS = new Object[0];	// Prevent new Object[0] by jvm for paras of action invocation.
+	private static final Object[] NULL_ARGS = new Object[0];	// Prevent new Object[0] by jvm for args of method invoking
 	
-	boolean useInjectTarget;
+	private Action action;
 	private Object target;
 	private Method method;
 	private Object[] args;
-	private MethodProxy methodProxy;
+	private Callback callback;
 	private Interceptor[] inters;
 	private Object returnValue;
 	
 	private int index = 0;
+	
+	public Invocation(Object target, Long proxyMethodKey, Callback callback, Object... args) {
+		this.action = null;
+		this.target = target;
+		
+		ProxyMethod proxyMethod = ProxyMethodCache.get(proxyMethodKey);
+		this.method = proxyMethod.getMethod();
+		this.inters = proxyMethod.getInterceptors();
+		
+		this.callback = callback;
+		this.args = args;
+	}
+	
+	public Invocation(Object target, Long proxyMethodKey, Callback callback) {
+		this(target, proxyMethodKey, callback, NULL_ARGS);
+	}
+	
+	/**
+	 * 用于扩展 ProxyFactory
+	 */
+	public Invocation(Object target, Method method, Interceptor[] inters, Callback callback, Object[] args) {
+		this.action = null;
+		this.target = target;
+		
+		this.method = method;
+		this.inters = inters;
+		
+		this.callback = callback;
+		this.args = args;
+	}
 	
 	// InvocationWrapper need this constructor
 	protected Invocation() {
@@ -50,16 +81,9 @@ public class Invocation {
 		this.action = action;
 		this.inters = action.getInterceptors();
 		this.target = controller;
-		this.args = NULL_ARGS;
-	}
-	
-	public Invocation(Object target, Method method, Object[] args, MethodProxy methodProxy, Interceptor[] inters) {
-		this.action = null;
-		this.target = target;
-		this.method = method;
-		this.args = args;
-		this.methodProxy = methodProxy;
-		this.inters = inters;
+		
+		// this.args = NULL_ARGS;
+		this.args = action.getParameterGetter().get(action, controller);
 	}
 	
 	public void invoke() {
@@ -72,19 +96,15 @@ public class Invocation {
 				if (action != null) {
 					returnValue = action.getMethod().invoke(target, args);
 				}
-				// Invoke the method
+				// Invoke the callback
 				else {
-					// if (!Modifier.isAbstract(method.getModifiers()))
-						// returnValue = methodProxy.invokeSuper(target, args);
-					if (useInjectTarget)
-						returnValue = methodProxy.invoke(target, args);
-					else
-						returnValue = methodProxy.invokeSuper(target, args);
+					returnValue = callback.call(args);
 				}
 			}
 			catch (InvocationTargetException e) {
 				Throwable t = e.getTargetException();
-				throw t instanceof RuntimeException ? (RuntimeException)t : new RuntimeException(e);
+				if (t == null) {t = e;}
+				throw t instanceof RuntimeException ? (RuntimeException)t : new RuntimeException(t);
 			}
 			catch (RuntimeException e) {
 				throw e;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package com.jfinal.template.source;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import com.jfinal.template.EngineConfig;
 
@@ -48,7 +47,7 @@ public class FileSource implements ISource {
 		return lastModified != new File(finalFileName).lastModified();
 	}
 	
-	public String getKey() {
+	public String getCacheKey() {
 		return fileName;
 	}
 	
@@ -77,6 +76,9 @@ public class FileSource implements ISource {
 	}
 	
 	private String buildFinalFileName(String baseTemplatePath, String fileName) {
+		if (baseTemplatePath == null) {
+			return fileName;
+		}
 		char firstChar = fileName.charAt(0);
 		String finalFileName;
 		if (firstChar == '/' || firstChar == '\\') {
@@ -89,9 +91,8 @@ public class FileSource implements ISource {
 	
 	public static StringBuilder loadFile(File file, String encoding) {
 		StringBuilder ret = new StringBuilder((int)file.length() + 3);
-		BufferedReader br = null;
-		try {
-			br = new BufferedReader(new InputStreamReader(new FileInputStream(file), encoding));
+		
+		try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), encoding))) {
 			// br = new BufferedReader(new FileReader(fileName));
 			String line = br.readLine();
 			if (line != null) {
@@ -106,15 +107,6 @@ public class FileSource implements ISource {
 			return ret;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
-		}
-		finally {
-			if (br != null) {
-				try {
-					br.close();
-				} catch (IOException e) {
-					com.jfinal.kit.LogKit.error(e.getMessage(), e);
-				}
-			}
 		}
 	}
 	

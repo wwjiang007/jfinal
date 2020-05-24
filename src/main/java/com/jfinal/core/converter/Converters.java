@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com) / 玛雅牛 (myaniu AT gmail dot com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com) / 玛雅牛 (myaniu AT gmail dot com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,9 +124,11 @@ public class Converters {
 	
 	public static class DateConverter implements IConverter<java.util.Date> {
 		// java.util.Date 类型专为传统 java bean 带有该类型的 setter 方法转换做准备，万不可去掉
-		// 经测试 JDBC 不会返回 java.util.Data 类型。java.sql.Date, java.sql.Time,java.sql.Timestamp 全部直接继承自 java.util.Data, 所以 getDate可以返回这三类数据
+		// 经测试 JDBC 不会返回 java.util.Date 类型。java.sql.Date, java.sql.Time,java.sql.Timestamp 全部直接继承自 java.util.Date, 所以 getDate可以返回这三类数据
 		@Override
 		public java.util.Date convert(String s) throws ParseException {
+			s = supportHtml5DateTimePattern(s);
+			
 			if (timeStampWithoutSecPatternLen == s.length()) {
 				s = s + ":00";
 			}
@@ -146,6 +148,8 @@ public class Converters {
 		// mysql type: date, year
 		@Override
 		public java.sql.Date convert(String s) throws ParseException {
+			s = supportHtml5DateTimePattern(s);
+			
 			if (timeStampWithoutSecPatternLen == s.length()) {
 				s = s + ":00";
 			}
@@ -179,6 +183,8 @@ public class Converters {
 		// mysql type: timestamp, datetime
 		@Override
 		public java.sql.Timestamp convert(String s) throws ParseException {
+			s = supportHtml5DateTimePattern(s);
+			
 			if (timeStampWithoutSecPatternLen == s.length()) {
 				s = s + ":00";
 			}
@@ -188,6 +194,15 @@ public class Converters {
 			else {
 				return new java.sql.Timestamp(new SimpleDateFormat(datePattern).parse(s).getTime());
 			}
+		}
+	}
+	
+	// 支持 html5 的 datetime 组件，格式为：2019-01-23T11:22
+	public static String supportHtml5DateTimePattern(String s) {
+		if (s.indexOf(' ') == -1 && s.indexOf('T') != -1 && s.indexOf('-') != -1 && s.indexOf(':') != -1) {
+			return s.replace("T", " ");
+		} else {
+			return s;
 		}
 	}
 }

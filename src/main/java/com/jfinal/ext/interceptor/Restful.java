@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ public class Restful implements Interceptor {
 	 * GET		/user/id		--->	show  
 	 * POST		/user			--->	save	
 	 * PUT		/user/id		--->	update
-	 * DELECT	/user/id		--->	delete
+	 * DELETE	/user/id		--->	delete
 	 */
 	public void intercept(Invocation inv) {
 		// 阻止 JFinal 原有规则 action 请求

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,10 @@
 package com.jfinal.template.source;
 
 import java.io.BufferedReader;
-import java.io.IOException;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.JarURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import com.jfinal.template.EngineConfig;
 
 /**
@@ -65,24 +63,19 @@ public class ClassPathSource implements ISource {
 		this.classLoader = getClassLoader();
 		this.url = classLoader.getResource(finalFileName);
 		if (url == null) {
-			throw new IllegalArgumentException("File not found : \"" + finalFileName + "\"");
+			throw new IllegalArgumentException("File not found in CLASSPATH or JAR : \"" + finalFileName + "\"");
 		}
 		
 		processIsInJarAndlastModified();
 	}
 	
 	protected void processIsInJarAndlastModified() {
-		try {
-			URLConnection conn = url.openConnection();
-			if ("jar".equals(url.getProtocol()) || conn instanceof JarURLConnection) {
-				isInJar = true;
-				lastModified = -1;
-			} else {
-				isInJar = false;
-				lastModified = conn.getLastModified();
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+		if ("file".equalsIgnoreCase(url.getProtocol())) {
+			isInJar = false;
+			lastModified = new File(url.getFile()).lastModified();
+		} else {	
+			isInJar = true;
+			lastModified = -1;
 		}
 	}
 	
@@ -111,7 +104,7 @@ public class ClassPathSource implements ISource {
 		return finalFileName;
 	}
 	
-	public String getKey() {
+	public String getCacheKey() {
 		return fileName;
 	}
 	
@@ -120,12 +113,7 @@ public class ClassPathSource implements ISource {
 	}
 	
 	protected long getLastModified() {
-		try {
-			URLConnection conn = url.openConnection();
-			return conn.getLastModified();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		return new File(url.getFile()).lastModified();
 	}
 	
 	/**
@@ -152,9 +140,8 @@ public class ClassPathSource implements ISource {
 	
 	public static StringBuilder loadFile(InputStream inputStream, String encoding) {
 		StringBuilder ret = new StringBuilder();
-		BufferedReader br = null;
-		try {
-			br = new BufferedReader(new InputStreamReader(inputStream, encoding));
+		
+		try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, encoding))) {
 			// br = new BufferedReader(new FileReader(fileName));
 			String line = br.readLine();
 			if (line != null) {
@@ -169,15 +156,6 @@ public class ClassPathSource implements ISource {
 			return ret;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
-		}
-		finally {
-			if (br != null) {
-				try {
-					br.close();
-				} catch (IOException e) {
-					com.jfinal.kit.LogKit.error(e.getMessage(), e);
-				}
-			}
 		}
 	}
 	

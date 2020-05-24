@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package com.jfinal.template.io;
 
-import java.nio.charset.MalformedInputException;
+// import java.nio.charset.MalformedInputException;
 
 /**
  * Utf8Encoder
@@ -62,12 +62,16 @@ public class Utf8Encoder extends Encoder {
                         if (Character.isLowSurrogate(d)) {
                             uc = Character.toCodePoint(c, d);
                         } else {
-                            throw new RuntimeException("encode UTF8 error", new MalformedInputException(1));
+                            // throw new RuntimeException("encode UTF8 error", new MalformedInputException(1));
+                            bytes[dp++] = (byte) '?';
+                            continue;
                         }
                     }
                 } else {
                     if (Character.isLowSurrogate(c)) {
-                        throw new RuntimeException("encode UTF8 error", new MalformedInputException(1));
+                        // throw new RuntimeException("encode UTF8 error", new MalformedInputException(1));
+                        bytes[dp++] = (byte) '?';
+                        continue;
                     } else {
                         uc = c;
                     }

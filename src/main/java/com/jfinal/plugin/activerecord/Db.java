@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package com.jfinal.plugin.activerecord;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.jfinal.kit.SyncWriteMap;
 
 /**
  * Db. Powerful database query and update tool box.
@@ -29,7 +29,7 @@ import java.util.Map;
 public class Db {
 	
 	private static DbPro MAIN = null;
-	private static final Map<String, DbPro> map = new HashMap<String, DbPro>();
+	private static final Map<String, DbPro> map = new SyncWriteMap<String, DbPro>(32, 0.25F);
 	
 	/**
 	 * for DbKit.addConfig(configName)
@@ -279,6 +279,10 @@ public class Db {
 		return MAIN.find(sql);
 	}
 	
+	public static List<Record> findAll(String tableName) {
+		return MAIN.findAll(tableName);
+	}
+	
 	/**
 	 * Find first record. I recommend add "limit 1" in your sql.
 	 * @param sql an SQL statement that may contain one or more '?' IN parameter placeholders
@@ -310,19 +314,23 @@ public class Db {
 		return MAIN.findById(tableName, idValue);
 	}
 	
+	public static Record findById(String tableName, String primaryKey, Object idValue) {
+		return MAIN.findById(tableName, primaryKey, idValue);
+	}
+	
 	/**
-	 * Find record by id.
+	 * Find record by ids.
 	 * <pre>
 	 * Example:
-	 * Record user = Db.findById("user", "user_id", 123);
-	 * Record userRole = Db.findById("user_role", "user_id, role_id", 123, 456);
+	 * Record user = Db.findByIds("user", "user_id", 123);
+	 * Record userRole = Db.findByIds("user_role", "user_id, role_id", 123, 456);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
-	 * @param idValue the id value of the record, it can be composite id values
+	 * @param idValues the id value of the record, it can be composite id values
 	 */
-	public static Record findById(String tableName, String primaryKey, Object... idValue) {
-		return MAIN.findById(tableName, primaryKey, idValue);
+	public static Record findByIds(String tableName, String primaryKey, Object... idValues) {
+		return MAIN.findByIds(tableName, primaryKey, idValues);
 	}
 	
 	/**
@@ -339,20 +347,24 @@ public class Db {
 		return MAIN.deleteById(tableName, idValue);
 	}
 	
+	public static boolean deleteById(String tableName, String primaryKey, Object idValue) {
+		return MAIN.deleteById(tableName, primaryKey, idValue);
+	}
+	
 	/**
-	 * Delete record by id.
+	 * Delete record by ids.
 	 * <pre>
 	 * Example:
-	 * Db.deleteById("user", "user_id", 15);
-	 * Db.deleteById("user_role", "user_id, role_id", 123, 456);
+	 * Db.deleteByIds("user", "user_id", 15);
+	 * Db.deleteByIds("user_role", "user_id, role_id", 123, 456);
 	 * </pre>
 	 * @param tableName the table name of the table
 	 * @param primaryKey the primary key of the table, composite primary key is separated by comma character: ","
-	 * @param idValue the id value of the record, it can be composite id values
+	 * @param idValues the id value of the record, it can be composite id values
 	 * @return true if delete succeed otherwise false
 	 */
-	public static boolean deleteById(String tableName, String primaryKey, Object... idValue) {
-		return MAIN.deleteById(tableName, primaryKey, idValue);
+	public static boolean deleteByIds(String tableName, String primaryKey, Object... idValues) {
+		return MAIN.deleteByIds(tableName, primaryKey, idValues);
 	}
 	
 	/**
@@ -666,7 +678,15 @@ public class Db {
     public static SqlPara getSqlPara(String key, Object... paras) {
     	return MAIN.getSqlPara(key, paras);
     }
-    
+	
+	public static SqlPara getSqlParaByString(String content, Map data) {
+		return MAIN.getSqlParaByString(content, data);
+	}
+	
+	public static SqlPara getSqlParaByString(String content, Object... paras) {
+		return MAIN.getSqlParaByString(content, paras);
+	}
+	
     public static List<Record> find(SqlPara sqlPara) {
     	return MAIN.find(sqlPara);
     }
@@ -682,6 +702,66 @@ public class Db {
     public static Page<Record> paginate(int pageNumber, int pageSize, SqlPara sqlPara) {
     	return MAIN.paginate(pageNumber, pageSize, sqlPara);
     }
+	
+	public static Page<Record> paginate(int pageNumber, int pageSize, boolean isGroupBySql, SqlPara sqlPara) {
+		return MAIN.paginate(pageNumber, pageSize, isGroupBySql, sqlPara);
+	}
+	
+	// ---------
+	
+	/**
+	 * 使用 sql 模板进行查询，可以省去 Db.getSqlPara(...) 调用
+	 * 
+	 * <pre>
+	 * 例子：
+	 * Db.template("blog.find", Kv.by("id", 123).find();
+	 * </pre>
+	 */
+	public static DbTemplate template(String key, Map data) {
+		return MAIN.template(key, data);
+	}
+	
+	/**
+	 * 使用 sql 模板进行查询，可以省去 Db.getSqlPara(...) 调用
+	 * 
+	 * <pre>
+	 * 例子：
+	 * Db.template("blog.find", 123).find();
+	 * </pre>
+	 */
+	public static DbTemplate template(String key, Object... paras) {
+		return MAIN.template(key, paras);
+	}
+	
+	// ---------
+	
+	/**
+	 * 使用字符串变量作为 sql 模板进行查询，可省去外部 sql 文件来使用
+	 * sql 模板功能
+	 * 
+	 * <pre>
+	 * 例子：
+	 * String sql = "select * from blog where id = #para(id)";
+	 * Db.templateByString(sql, Kv.by("id", 123).find();
+	 * </pre>
+	 */
+	public static DbTemplate templateByString(String content, Map data) {
+		return MAIN.templateByString(content, data);
+	}
+	
+	/**
+	 * 使用字符串变量作为 sql 模板进行查询，可省去外部 sql 文件来使用
+	 * sql 模板功能
+	 * 
+	 * <pre>
+	 * 例子：
+	 * String sql = "select * from blog where id = #para(0)";
+	 * Db.templateByString(sql, 123).find();
+	 * </pre>
+	 */
+	public static DbTemplate templateByString(String content, Object... paras) {
+		return MAIN.templateByString(content, paras);
+	}
 }
 
 

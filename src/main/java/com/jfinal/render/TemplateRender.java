@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.jfinal.render;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +27,7 @@ import com.jfinal.template.Engine;
  */
 public class TemplateRender extends Render {
 	
-	private static Engine engine;
+	protected static Engine engine;
 	
 	private static final String contentType = "text/html; charset=" + getEncoding();
 	
@@ -49,25 +48,27 @@ public class TemplateRender extends Render {
 	
 	public void render() {
 		response.setContentType(getContentType());
-        
+		
 		Map<Object, Object> data = new HashMap<Object, Object>();
 		for (Enumeration<String> attrs=request.getAttributeNames(); attrs.hasMoreElements();) {
 			String attrName = attrs.nextElement();
 			data.put(attrName, request.getAttribute(attrName));
 		}
 		
-        try {
-        	OutputStream os = response.getOutputStream();
-        	engine.getTemplate(view).render(data, os);
-        } catch (RuntimeException e) {	// 捕获 ByteWriter.close() 抛出的 RuntimeException
-        	Throwable cause = e.getCause();
-        	if (cause instanceof IOException) {	// ClientAbortException、EofException 直接或间接继承自 IOException
-	        	String name = cause.getClass().getSimpleName();
-	        	if ("ClientAbortException".equals(name) || "EofException".equals(name)) {
-	        		return ;
-	        	}
-	        }
-        	throw e;
+		try {
+			
+			engine.getTemplate(view).render(data, response.getOutputStream());
+			
+		} catch (RuntimeException e) {	// 捕获 ByteWriter.close() 抛出的 RuntimeException
+			Throwable cause = e.getCause();
+			if (cause instanceof IOException) {	// ClientAbortException、EofException 直接或间接继承自 IOException
+				String name = cause.getClass().getSimpleName();
+				if ("ClientAbortException".equals(name) || "EofException".equals(name)) {
+					return ;
+				}
+			}
+			
+			throw e;
 		} catch (IOException e) {
 			throw new RenderException(e);
 		}

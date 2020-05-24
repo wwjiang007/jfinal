@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import javax.servlet.http.HttpServletResponse;
 import com.jfinal.config.Constants;
 import com.jfinal.aop.Invocation;
 import com.jfinal.handler.Handler;
+import com.jfinal.kit.ReflectKit;
 import com.jfinal.log.Log;
 import com.jfinal.render.Render;
 import com.jfinal.render.RenderException;
@@ -32,6 +33,7 @@ import com.jfinal.render.RenderManager;
 public class ActionHandler extends Handler {
 	
 	protected boolean devMode;
+	protected boolean injectDependency;
 	protected ActionMapping actionMapping;
 	protected ControllerFactory controllerFactory;
 	protected static final RenderManager renderManager = RenderManager.me();
@@ -40,7 +42,15 @@ public class ActionHandler extends Handler {
 	protected void init(ActionMapping actionMapping, Constants constants) {
 		this.actionMapping = actionMapping;
 		this.devMode = constants.getDevMode();
+		this.injectDependency = constants.getInjectDependency();
 		this.controllerFactory = constants.getControllerFactory();
+	}
+	
+	/**
+	 * 子类覆盖 getAction 方法可以定制路由功能
+	 */
+	protected Action getAction(String target, String[] urlPara) {
+		return actionMapping.getAction(target, urlPara);
 	}
 	
 	/**
@@ -56,7 +66,7 @@ public class ActionHandler extends Handler {
 		
 		isHandled[0] = true;
 		String[] urlPara = {null};
-		Action action = actionMapping.getAction(target, urlPara);
+		Action action = getAction(target, urlPara);
 		
 		if (action == null) {
 			if (log.isWarnEnabled()) {
@@ -71,7 +81,8 @@ public class ActionHandler extends Handler {
 		try {
 			// Controller controller = action.getControllerClass().newInstance();
 			controller = controllerFactory.getController(action.getControllerClass());
-			controller.init(action, request, response, urlPara[0]);
+			if (injectDependency) {com.jfinal.aop.Aop.inject(controller);}
+			controller._init_(action, request, response, urlPara[0]);
 			
 			if (devMode) {
 				if (ActionReporter.isReportAfterInvocation(request)) {
@@ -109,41 +120,59 @@ public class ActionHandler extends Handler {
 			}
 		}
 		catch (ActionException e) {
-			int errorCode = e.getErrorCode();
-			String msg = null;
-			if (errorCode == 404) {
-				msg = "404 Not Found: ";
-			} else if (errorCode == 401) {
-				msg = "401 Unauthorized: ";
-			} else if (errorCode == 403) {
-				msg = "403 Forbidden: ";
-			}
-			
-			if (msg != null) {
-				if (log.isWarnEnabled()) {
-					String qs = request.getQueryString();
-					log.warn(msg + (qs == null ? target : target + "?" + qs));
-				}
-			} else {
-				if (log.isErrorEnabled()) {
-					String qs = request.getQueryString();
-					log.error(qs == null ? target : target + "?" + qs, e);
-				}
-			}
-			
-			e.getErrorRender().setContext(request, response, action.getViewPath()).render();
+			handleActionException(target, request, response, action, e);
 		}
 		catch (Exception e) {
 			if (log.isErrorEnabled()) {
 				String qs = request.getQueryString();
-				log.error(qs == null ? target : target + "?" + qs, e);
+				String targetInfo = (qs == null ? target : target + "?" + qs);
+				String sign = ReflectKit.getMethodSignature(action.getMethod());
+				log.error(sign + " : " + targetInfo, e);
 			}
 			renderManager.getRenderFactory().getErrorRender(500).setContext(request, response, action.getViewPath()).render();
 		} finally {
-			if (controller != null) {
-				controller.clear();
+			controllerFactory.recycle(controller);
+		}
+	}
+	
+	/**
+	 * 抽取出该方法是为了缩短 handle 方法中的代码量，确保获得 JIT 优化，
+	 * 方法长度超过 8000 个字节码时，将不会被 JIT 编译成二进制码
+	 * 
+	 * 通过开启 java 的 -XX:+PrintCompilation 启动参数得知，handle(...) 
+	 * 方法(73 行代码)已被 JIT 优化，优化后的字节码长度为 593 个字节，相当于
+	 * 每行代码产生 8.123 个字节
+	 */
+	private void handleActionException(String target, HttpServletRequest request, HttpServletResponse response, Action action, ActionException e) {
+		int errorCode = e.getErrorCode();
+		String msg = null;
+		if (errorCode == 404) {
+			msg = "404 Not Found: ";
+		} else if (errorCode == 400) {
+			msg = "400 Bad Request: ";
+		} else if (errorCode == 401) {
+			msg = "401 Unauthorized: ";
+		} else if (errorCode == 403) {
+			msg = "403 Forbidden: ";
+		}
+		
+		if (msg != null) {
+			if (log.isWarnEnabled()) {
+				String qs = request.getQueryString();
+				msg = msg + (qs == null ? target : target + "?" + qs);
+				if (e.getMessage() != null) {
+					msg = msg + "\n" + e.getMessage();
+				}
+				log.warn(msg);
+			}
+		} else {
+			if (log.isErrorEnabled()) {
+				String qs = request.getQueryString();
+				log.error(errorCode + " Error: " + (qs == null ? target : target + "?" + qs), e);
 			}
 		}
+		
+		e.getErrorRender().setContext(request, response, action.getViewPath()).render();
 	}
 }
 

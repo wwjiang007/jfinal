@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -105,6 +105,16 @@ public class Generator {
 	public void setMetaBuilder(MetaBuilder metaBuilder) {
 		if (metaBuilder != null) {
 			this.metaBuilder = metaBuilder;
+		}
+	}
+	
+	/**
+	 * 配置是否生成字段备注，生成的备注会体现在 Base Model 之中
+	 * 默认值为 false
+	 */
+	public void setGenerateRemarks(boolean generateRemarks) {
+		if (metaBuilder != null) {
+			metaBuilder.setGenerateRemarks(generateRemarks);
 		}
 	}
 	

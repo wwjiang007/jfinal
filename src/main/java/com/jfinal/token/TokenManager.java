@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ public class TokenManager {
 	}
 	
 	/**
-	 * Use ${token!} in view for generate hidden input field.
+	 * 使用 #(token) 指令，将 token 隐藏域输出到页面表单之中，表单提交的时候该表单域会被提交
 	 */
 	private static void createTokenHiddenField(Controller controller, String tokenName, String tokenId) {
 		StringBuilder sb = new StringBuilder();

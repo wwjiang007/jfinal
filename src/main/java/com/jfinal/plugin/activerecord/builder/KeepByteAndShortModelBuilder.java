@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ public class KeepByteAndShortModelBuilder extends ModelBuilder {
 	public static final KeepByteAndShortModelBuilder me = new KeepByteAndShortModelBuilder();
 	
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public <T> List<T> build(ResultSet rs, Class<? extends Model> modelClass) throws SQLException, InstantiationException, IllegalAccessException {
+	public <T> List<T> build(ResultSet rs, Class<? extends Model> modelClass) throws SQLException, ReflectiveOperationException {
 		List<T> result = new ArrayList<T>();
 		ResultSetMetaData rsmd = rs.getMetaData();
 		int columnCount = rsmd.getColumnCount();
@@ -57,9 +57,9 @@ public class KeepByteAndShortModelBuilder extends ModelBuilder {
 				int t = types[i];
 				if (t < Types.DATE) {
 					if (t == Types.TINYINT) {
-						value = rs.getByte(i);
+						value = BuilderKit.getByte(rs, i);
 					} else if (t == Types.SMALLINT) {
-						value = rs.getShort(i);
+						value = BuilderKit.getShort(rs, i);
 					} else {
 						value = rs.getObject(i);
 					}

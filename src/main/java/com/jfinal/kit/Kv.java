@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,6 @@ import com.jfinal.json.Json;
 @SuppressWarnings({"serial", "rawtypes", "unchecked"})
 public class Kv extends HashMap {
 	
-	@Deprecated
-	private static final String STATE_OK = "isOk";
-	@Deprecated
-	private static final String STATE_FAIL = "isFail";
-	
 	public Kv() {
 	}
 	
@@ -46,70 +41,22 @@ public class Kv extends HashMap {
 		return new Kv();
 	}
 	
-	@Deprecated
-	public static Kv ok() {
-		return new Kv().setOk();
-	}
-	
-	@Deprecated
-	public static Kv ok(Object key, Object value) {
-		return ok().set(key, value);
-	}
-	
-	@Deprecated
-	public static Kv fail() {
-		return new Kv().setFail();
-	}
-	
-	@Deprecated
-	public static Kv fail(Object key, Object value) {
-		return fail().set(key, value);
-	}
-	
-	@Deprecated
-	public Kv setOk() {
-		super.put(STATE_OK, Boolean.TRUE);
-		super.put(STATE_FAIL, Boolean.FALSE);
-		return this;
-	}
-	
-	@Deprecated
-	public Kv setFail() {
-		super.put(STATE_FAIL, Boolean.TRUE);
-		super.put(STATE_OK, Boolean.FALSE);
-		return this;
-	}
-	
-	@Deprecated
-	public boolean isOk() {
-		Boolean isOk = (Boolean)get(STATE_OK);
-		if (isOk != null) {
-			return isOk;
-		}
-		Boolean isFail = (Boolean)get(STATE_FAIL);
-		if (isFail != null) {
-			return !isFail;
-		}
-		
-		throw new IllegalStateException("调用 isOk() 之前，必须先调用 ok()、fail() 或者 setOk()、setFail() 方法");
-	}
-	
-	@Deprecated
-	public boolean isFail() {
-		Boolean isFail = (Boolean)get(STATE_FAIL);
-		if (isFail != null) {
-			return isFail;
-		}
-		Boolean isOk = (Boolean)get(STATE_OK);
-		if (isOk != null) {
-			return !isOk;
-		}
-		
-		throw new IllegalStateException("调用 isFail() 之前，必须先调用 ok()、fail() 或者 setOk()、setFail() 方法");
-	}
-	
 	public Kv set(Object key, Object value) {
 		super.put(key, value);
+		return this;
+	}
+	
+	public Kv setIfNotBlank(Object key, String value) {
+		if (StrKit.notBlank(value)) {
+			set(key, value);
+		}
+		return this;
+	}
+	
+	public Kv setIfNotNull(Object key, Object value) {
+		if (value != null) {
+			set(key, value);
+		}
 		return this;
 	}
 	

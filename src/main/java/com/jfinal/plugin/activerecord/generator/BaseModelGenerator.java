@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@
 package com.jfinal.plugin.activerecord.generator;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,13 +27,13 @@ import com.jfinal.kit.JavaKeyword;
 import com.jfinal.kit.Kv;
 import com.jfinal.kit.StrKit;
 import com.jfinal.template.Engine;
-import com.jfinal.template.source.ClassPathSourceFactory;
 
 /**
  * Base model 生成器
  */
 public class BaseModelGenerator {
 	
+	protected Engine engine;
 	protected String template = "/com/jfinal/plugin/activerecord/generator/base_model_template.jf";
 	
 	protected String baseModelPackageName;
@@ -71,6 +72,16 @@ public class BaseModelGenerator {
 		
 		this.baseModelPackageName = baseModelPackageName;
 		this.baseModelOutputDir = baseModelOutputDir;
+		
+		initEngine();
+	}
+	
+	protected void initEngine() {
+		engine = new Engine();
+		engine.setToClassPathSourceFactory();	// 从 class path 内读模板文件
+		engine.addSharedMethod(new StrKit());
+		engine.addSharedObject("getterTypeMap", getterTypeMap);
+		engine.addSharedObject("javaKeyword", javaKeyword);
 	}
 	
 	/**
@@ -88,12 +99,6 @@ public class BaseModelGenerator {
 		System.out.println("Generate base model ...");
 		System.out.println("Base Model Output Dir: " + baseModelOutputDir);
 		
-		Engine engine = Engine.create("forBaseModel");
-		engine.setSourceFactory(new ClassPathSourceFactory());
-		engine.addSharedMethod(new StrKit());
-		engine.addSharedObject("getterTypeMap", getterTypeMap);
-		engine.addSharedObject("javaKeyword", javaKeyword);
-		
 		for (TableMeta tableMeta : tableMetas) {
 			genBaseModelContent(tableMeta);
 		}
@@ -105,7 +110,6 @@ public class BaseModelGenerator {
 		data.set("generateChainSetter", generateChainSetter);
 		data.set("tableMeta", tableMeta);
 		
-		Engine engine = Engine.use("forBaseModel");
 		tableMeta.baseModelContent = engine.getTemplate(template).renderToString(data);
 	}
 	
@@ -129,13 +133,24 @@ public class BaseModelGenerator {
 		}
 		
 		String target = baseModelOutputDir + File.separator + tableMeta.baseModelName + ".java";
-		FileWriter fw = new FileWriter(target);
+		OutputStreamWriter osw = null;
 		try {
-			fw.write(tableMeta.baseModelContent);
+			osw = new OutputStreamWriter(new FileOutputStream(target), "UTF-8");
+			osw.write(tableMeta.baseModelContent);
 		}
 		finally {
-			fw.close();
+			if (osw != null) {
+				osw.close();
+			}
 		}
+	}
+	
+	public String getBaseModelPackageName() {
+		return baseModelPackageName;
+	}
+	
+	public String getBaseModelOutputDir() {
+		return baseModelOutputDir;
 	}
 }
 

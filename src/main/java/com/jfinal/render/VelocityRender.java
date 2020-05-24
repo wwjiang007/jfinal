@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ public class VelocityRender extends Render {
            writer = response.getWriter();	// BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
             
            template.merge(context, writer);
-           writer.flush();	// flush and cleanup
+           // writer.flush();	// flush and cleanup
         }
         catch(ResourceNotFoundException e) {
         	throw new RenderException("Example : error : cannot find template " + view, e);

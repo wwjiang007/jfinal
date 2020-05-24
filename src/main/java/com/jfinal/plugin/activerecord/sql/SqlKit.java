@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,11 +48,13 @@ public class SqlKit {
 		
 		engine = new Engine(configName);
 		engine.setDevMode(devMode);
+		engine.setToClassPathSourceFactory();
 		
 		engine.addDirective("namespace", NameSpaceDirective.class);
 		engine.addDirective("sql", SqlDirective.class);
-		engine.addDirective("para", ParaDirective.class);
-		engine.addDirective("p", ParaDirective.class);		// 配置 #para 指令的别名指令 #p，不建议使用，在此仅为兼容 3.0 版本
+		
+		engine.addDirective("para", ParaDirective.class, true);
+		engine.addDirective("p", ParaDirective.class, true);		// 配置 #para 指令的别名指令 #p，不建议使用，在此仅为兼容 3.0 版本
 	}
 	
 	public SqlKit(String configName) {
@@ -87,7 +89,7 @@ public class SqlKit {
 	}
 	
 	public synchronized void parseSqlTemplate() {
-		Map<String, Template> sqlTemplateMap = new HashMap<String, Template>();
+		Map<String, Template> sqlTemplateMap = new HashMap<String, Template>(512, 0.5F);
 		for (SqlSource ss : sqlSourceList) {
 			Template template = ss.isFile() ? engine.getTemplate(ss.file) : engine.getTemplate(ss.source);
 			Map<Object, Object> data = new HashMap<Object, Object>();
@@ -200,6 +202,52 @@ public class SqlKit {
 	
 	public String toString() {
 		return "SqlKit for config : " + configName;
+	}
+	
+	// ---------
+	
+	/**
+	 * 通过 String 内容获取 SqlPara 对象
+	 * 
+	 * <pre>
+	 * 例子：
+	 *     String content = "select * from user where id = #para(id)";
+	 *     SqlPara sqlPara = getSqlParaByString(content, Kv.by("id", 123));
+	 * 
+	 * 特别注意：content 参数中不能包含 #sql 指令
+	 * </pre>
+	 */
+	public SqlPara getSqlParaByString(String content, Map data) {
+		Template template = engine.getTemplateByString(content);
+		
+		SqlPara sqlPara = new SqlPara();
+		data.put(SQL_PARA_KEY, sqlPara);
+		sqlPara.setSql(template.renderToString(data));
+		data.remove(SQL_PARA_KEY);	// 避免污染传入的 Map
+		return sqlPara;
+	}
+	
+	/**
+	 * 通过 String 内容获取 SqlPara 对象
+	 * 
+	 * <pre>
+	 * 例子：
+	 *     String content = "select * from user where id = #para(0)";
+	 *     SqlPara sqlPara = getSqlParaByString(content, 123);
+	 * 
+	 * 特别注意：content 参数中不能包含 #sql 指令
+	 * </pre>
+	 */
+	public SqlPara getSqlParaByString(String content, Object... paras) {
+		Template template = engine.getTemplateByString(content);
+		
+		SqlPara sqlPara = new SqlPara();
+		Map data = new HashMap();
+		data.put(SQL_PARA_KEY, sqlPara);
+		data.put(PARA_ARRAY_KEY, paras);
+		sqlPara.setSql(template.renderToString(data));
+		// data 为本方法中创建，不会污染用户数据，无需移除 SQL_PARA_KEY、PARA_ARRAY_KEY
+		return sqlPara;
 	}
 }
 

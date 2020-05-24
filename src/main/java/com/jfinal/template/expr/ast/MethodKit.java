@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import com.jfinal.kit.ReflectKit;
+import com.jfinal.kit.SyncWriteMap;
 import com.jfinal.template.ext.extensionmethod.ByteExt;
 import com.jfinal.template.ext.extensionmethod.DoubleExt;
 import com.jfinal.template.ext.extensionmethod.FloatExt;
@@ -37,17 +38,20 @@ import com.jfinal.template.ext.extensionmethod.StringExt;
 public class MethodKit {
 	
 	private static final Class<?>[] NULL_ARG_TYPES = new Class<?>[0];
-	private static final Set<String> forbiddenMethods = new HashSet<String>();
-	private static final Set<Class<?>> forbiddenClasses = new HashSet<Class<?>>();
-	private static final Map<Class<?>, Class<?>> primitiveMap = new HashMap<Class<?>, Class<?>>();
-	private static final HashMap<Long, Object> methodCache = new HashMap<Long, Object>();
+	private static final Set<String> forbiddenMethods = new HashSet<String>(64);
+	private static final Set<Class<?>> forbiddenClasses = new HashSet<Class<?>>(64);
+	private static final Map<Class<?>, Class<?>> primitiveMap = new HashMap<Class<?>, Class<?>>(64);
+	private static final SyncWriteMap<Long, MethodInfo> methodCache = new SyncWriteMap<Long, MethodInfo>(2048, 0.25F);
 	
 	// 初始化在模板中调用 method 时所在的被禁止使用类
 	static {
 		Class<?>[] cs = {
 			System.class, Runtime.class, Thread.class, Class.class, ClassLoader.class, File.class,
 			Compiler.class, InheritableThreadLocal.class, Package.class, Process.class,
-			RuntimePermission.class, SecurityManager.class, ThreadGroup.class, ThreadLocal.class
+			RuntimePermission.class, SecurityManager.class, ThreadGroup.class, ThreadLocal.class,
+			
+			java.lang.reflect.Method.class,
+			java.lang.reflect.Proxy.class
 		};
 		for (Class<?> c : cs) {
 			forbiddenClasses.add(c);
@@ -58,10 +62,10 @@ public class MethodKit {
 	static {
 		String[] ms = {
 			"getClass", "getDeclaringClass", "forName", "newInstance", "getClassLoader",
-			"getMethod", "getMethods", "getField", "getFields",
+			"invoke", // "getMethod", "getMethods", // "getField", "getFields",
 			"notify", "notifyAll", "wait",
-			"load", "exit", "loadLibrary", "halt",
-			"stop", "suspend", "resume", "setDaemon", "setPriority",
+			"exit", "loadLibrary", "halt", // "load",
+			"stop", "suspend", "resume" // "setDaemon", "setPriority"
 		};
 		for (String m : ms) {
 			forbiddenMethods.add(m);
@@ -93,6 +97,14 @@ public class MethodKit {
 		return forbiddenClasses.contains(clazz);
 	}
 	
+	public static void addForbiddenClass(Class<?> clazz) {
+		forbiddenClasses.add(clazz);
+	}
+	
+	public static void removeForbiddenClass(Class<?> clazz) {
+		forbiddenClasses.remove(clazz);
+	}
+	
 	public static boolean isForbiddenMethod(String methodName) {
 		return forbiddenMethods.contains(methodName);
 	}
@@ -101,37 +113,26 @@ public class MethodKit {
 		forbiddenMethods.add(methodName);
 	}
 	
+	public static void removeForbiddenMethod(String methodName) {
+		forbiddenMethods.remove(methodName);
+	}
+	
+	public static void clearCache() {
+		methodCache.clear();
+	}
+	
 	public static MethodInfo getMethod(Class<?> targetClass, String methodName, Object[] argValues) {
 		Class<?>[] argTypes = getArgTypes(argValues);
 		Long key = getMethodKey(targetClass, methodName, argTypes);
-		Object method = methodCache.get(key);
+		MethodInfo method = methodCache.get(key);
 		if (method == null) {
+			// 已确保不会返回 null，对于不存在的 Method，只进行一次获取操作
+			// 提升 null safe 表达式性能，未来需要考虑内存泄漏风险
 			method = doGetMethod(key, targetClass, methodName, argTypes);
-			if (method != null) {
-				methodCache.put(key, method);
-			} else {
-				// 对于不存在的 Method，只进行一次获取操作，主要为了支持 null safe，未来需要考虑内存泄漏风险
-				methodCache.put(key, Boolean.FALSE);
-			}
+			methodCache.putIfAbsent(key, method);
 		}
-		return method instanceof MethodInfo ? (MethodInfo)method : null;
-	}
-	
-	/**
-	 * 获取 getter 方法
-	 * 使用与 Field 相同的 key，避免生成两次 key值
-	 */
-	public static MethodInfo getGetterMethod(Long key, Class<?> targetClass, String methodName) {
-		Object getterMethod = methodCache.get(key);
-		if (getterMethod == null) {
-			getterMethod = doGetMethod(key, targetClass, methodName, NULL_ARG_TYPES);
-			if (getterMethod != null) {
-				methodCache.put(key, getterMethod);
-			} else {
-				methodCache.put(key, Boolean.FALSE);
-			}
-		}
-		return getterMethod instanceof MethodInfo ? (MethodInfo)getterMethod : null;
+		
+		return method;
 	}
 	
 	static Class<?>[] getArgTypes(Object[] argValues) {
@@ -149,7 +150,9 @@ public class MethodKit {
 		if (forbiddenClasses.contains(targetClass)) {
 			throw new RuntimeException("Forbidden class: " + targetClass.getName());
 		}
+		
 		// 仅开启 forbiddenClasses 检测
+		// Method、SharedMethod、StaticMethod 已用 MethodKit.isForbiddenMethod(...) 检测
 		// if (forbiddenMethods.contains(methodName)) {
 		// 	throw new RuntimeException("Forbidden method: " + methodName);
 		// }
@@ -166,7 +169,8 @@ public class MethodKit {
 				}
 			}
 		}
-		return null;
+		
+		return NullMethodInfo.me;
 	}
 	
 	static boolean matchFixedArgTypes(Class<?>[] paraTypes, Class<?>[] argTypes) {
@@ -279,7 +283,7 @@ public class MethodKit {
 				}
 				
 				MethodInfoExt mie = new MethodInfoExt(objectOfExtensionClass, key, extensionClass/* targetClass */, method);
-				methodCache.put(key, mie);
+				methodCache.putIfAbsent(key, mie);
 			}
 		}
 	}
@@ -307,7 +311,7 @@ public class MethodKit {
 		}
 	}
 	
-	private static final Map<Class<?>, Class<?>> primitiveToBoxedMap = new HashMap<Class<?>, Class<?>>();
+	private static final Map<Class<?>, Class<?>> primitiveToBoxedMap = new HashMap<Class<?>, Class<?>>(64);
 	
 	// 初始化 primitive type 到 boxed type 的映射
 	static {

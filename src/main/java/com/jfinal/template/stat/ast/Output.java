@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,12 +66,10 @@ public class Output extends Stat {
 				} else {
 					writer.write(value.toString());
 				}
-			} else if (value instanceof Boolean) {
-				writer.write((Boolean)value);
 			} else if (value != null) {
 				writer.write(value.toString());
 			}
-		} catch(TemplateException e) {
+		} catch(TemplateException | ParseException e) {
 			throw e;
 		} catch(Exception e) {
 			throw new TemplateException(e.getMessage(), location, e);

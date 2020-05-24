@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,14 @@ import com.jfinal.core.Const;
  */
 public class Prop {
 	
-	private Properties properties = null;
+	protected Properties properties;
+	
+	/**
+	 * 支持 new Prop().appendIfExists(...)
+	 */
+	public Prop() {
+		properties = new Properties();
+	}
 	
 	/**
 	 * Prop constructor.
@@ -150,7 +157,7 @@ public class Prop {
 	}
 	
 	public Prop appendIfExists(File file, String encoding) {
-		if (file.exists()) {
+		if (file.isFile()) {
 			append(new Prop(file, encoding));
 		}
 		return this;
@@ -212,6 +219,14 @@ public class Prop {
 	
 	public boolean containsKey(String key) {
 		return properties.containsKey(key);
+	}
+	
+	public boolean isEmpty() {
+		return properties.isEmpty();
+	}
+	
+	public boolean notEmpty() {
+		return ! properties.isEmpty();
 	}
 	
 	public Properties getProperties() {

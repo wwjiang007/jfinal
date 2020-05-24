@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,26 +40,20 @@ public class CharWriter extends Writer {
 	}
 	
 	public void close() {
-		try {
-			if (out != null) {
-				out.flush();
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} finally {
-			out = null;
-		}
+		out = null;
 	}
 	
 	public void write(String str, int offset, int len) throws IOException {
-		while (len > chars.length) {
-			write(str, offset, chars.length);
-			offset += chars.length;
-			len -= chars.length;
+		int size;
+		while (len > 0) {
+			size = (len > chars.length ? chars.length : len);
+			
+			str.getChars(offset, offset + size, chars, 0);
+			out.write(chars, 0, size);
+			
+			offset += size;
+			len -= size;
 		}
-		
-		str.getChars(offset, offset + len, chars, 0);
-		out.write(chars, 0, len);
 	}
 	
 	public void write(String str) throws IOException {
@@ -67,14 +61,16 @@ public class CharWriter extends Writer {
 	}
 	
 	public void write(StringBuilder stringBuilder, int offset, int len) throws IOException {
-		while (len > chars.length) {
-			write(stringBuilder, offset, chars.length);
-			offset += chars.length;
-			len -= chars.length;
+		int size;
+		while (len > 0) {
+			size = (len > chars.length ? chars.length : len);
+			
+			stringBuilder.getChars(offset, offset + size, chars, 0);
+			out.write(chars, 0, size);
+			
+			offset += size;
+			len -= size;
 		}
-		
-		stringBuilder.getChars(offset, offset + len, chars, 0);
-		out.write(chars, 0, len);
 	}
 	
 	public void write(StringBuilder stringBuilder) throws IOException {

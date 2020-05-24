@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,20 @@
 package com.jfinal.plugin.activerecord.generator;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.List;
 import com.jfinal.kit.Kv;
 import com.jfinal.kit.StrKit;
 import com.jfinal.template.Engine;
-import com.jfinal.template.source.ClassPathSourceFactory;
 
 /**
  * Model 生成器
  */
 public class ModelGenerator {
 	
+	protected Engine engine;
 	protected String template = "/com/jfinal/plugin/activerecord/generator/model_template.jf";
 	
 	protected String modelPackageName;
@@ -57,6 +58,14 @@ public class ModelGenerator {
 		this.modelPackageName = modelPackageName;
 		this.baseModelPackageName = baseModelPackageName;
 		this.modelOutputDir = modelOutputDir;
+		
+		initEngine();
+	}
+	
+	protected void initEngine() {
+		engine = new Engine();
+		engine.setToClassPathSourceFactory();
+		engine.addSharedMethod(new StrKit());
 	}
 	
 	/**
@@ -74,10 +83,6 @@ public class ModelGenerator {
 		System.out.println("Generate model ...");
 		System.out.println("Model Output Dir: " + modelOutputDir);
 		
-		Engine engine = Engine.create("forModel");
-		engine.setSourceFactory(new ClassPathSourceFactory());
-		engine.addSharedMethod(new StrKit());
-		
 		for (TableMeta tableMeta : tableMetas) {
 			genModelContent(tableMeta);
 		}
@@ -90,7 +95,7 @@ public class ModelGenerator {
 		data.set("generateDaoInModel", generateDaoInModel);
 		data.set("tableMeta", tableMeta);
 		
-		String ret = Engine.use("forModel").getTemplate(template).renderToString(data);
+		String ret = engine.getTemplate(template).renderToString(data);
 		tableMeta.modelContent = ret;
 	}
 	
@@ -120,13 +125,28 @@ public class ModelGenerator {
 			return ;	// 若 Model 存在，不覆盖
 		}
 		
-		FileWriter fw = new FileWriter(file);
+		OutputStreamWriter osw = null;
 		try {
-			fw.write(tableMeta.modelContent);
+			osw = new OutputStreamWriter(new FileOutputStream(file), "UTF-8");
+			osw.write(tableMeta.modelContent);
 		}
 		finally {
-			fw.close();
+			if (osw != null) {
+				osw.close();
+			}
 		}
+	}
+	
+	public String getModelPackageName() {
+		return modelPackageName;
+	}
+	
+	public String getBaseModelPackageName() {
+		return baseModelPackageName;
+	}
+	
+	public String getModelOutputDir() {
+		return modelOutputDir;
 	}
 }
 

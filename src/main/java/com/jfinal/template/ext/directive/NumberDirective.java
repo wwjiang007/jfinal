@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2017, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,10 +53,9 @@ public class NumberDirective extends Directive {
 	
 	private Expr valueExpr;
 	private Expr patternExpr;
-	private int paraNum;
 	
 	public void setExprList(ExprList exprList) {
-		this.paraNum = exprList.length();
+		int paraNum = exprList.length();
 		if (paraNum == 0) {
 			throw new ParseException("The parameter of #number directive can not be blank", location);
 		}
@@ -64,13 +63,8 @@ public class NumberDirective extends Directive {
 			throw new ParseException("Wrong number parameter of #number directive, two parameters allowed at most", location);
 		}
 		
-		if (paraNum == 1) {
-			this.valueExpr = exprList.getExpr(0);
-			this.patternExpr = null;
-		} else if (paraNum == 2) {
-			this.valueExpr = exprList.getExpr(0);
-			this.patternExpr = exprList.getExpr(1);
-		}
+		valueExpr = exprList.getExpr(0);
+		patternExpr = (paraNum == 1 ? null : exprList.getExpr(1));
 	}
 	
 	public void exec(Env env, Scope scope, Writer writer) {
@@ -79,9 +73,9 @@ public class NumberDirective extends Directive {
 			return ;
 		}
 		
-		if (paraNum == 1) {
+		if (patternExpr == null) {
 			outputWithoutPattern(writer, value);
-		} else if (paraNum == 2) {
+		} else {
 			outputWithPattern(scope, writer, value);
 		}
 	}

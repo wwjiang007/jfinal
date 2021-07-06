@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ public class Table {
 		this.primaryKey = arr;
 	}
 	
-	void setColumnTypeMap(Map<String, Class<?>> columnTypeMap) {
+	public void setColumnTypeMap(Map<String, Class<?>> columnTypeMap) {
 		if (columnTypeMap == null)
 			throw new IllegalArgumentException("columnTypeMap can not be null");
 		
@@ -74,7 +74,7 @@ public class Table {
 		return name;
 	}
 	
-	void setColumnType(String columnLabel, Class<?> columnType) {
+	public void setColumnType(String columnLabel, Class<?> columnType) {
 		columnTypeMap.put(columnLabel, columnType);
 	}
 	

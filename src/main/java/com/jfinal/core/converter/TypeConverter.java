@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com) / 玛雅牛 (myaniu AT gmail dot com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com) / 玛雅牛 (myaniu AT gmail dot com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@ import com.jfinal.core.converter.Converters.SqlDateConverter;
 import com.jfinal.core.converter.Converters.ShortConverter;
 import com.jfinal.core.converter.Converters.TimeConverter;
 import com.jfinal.core.converter.Converters.TimestampConverter;
+import com.jfinal.core.converter.Converters.LocalDateTimeConverter;
+import com.jfinal.core.converter.Converters.LocalDateConverter;
 
 /**
  * TypeConverter 用于将客户端请求的 String 类型数据转换成指定的数据类型
@@ -88,6 +90,9 @@ public class TypeConverter {
 		regist(short.class, new ShortConverter());
 		regist(Byte.class, new ByteConverter());
 		regist(byte.class, new ByteConverter());
+		
+		regist(java.time.LocalDateTime.class, new LocalDateTimeConverter());
+		regist(java.time.LocalDate.class, new LocalDateConverter());
 	}
 	
 	public static TypeConverter me() {

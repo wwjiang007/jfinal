@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,11 +53,8 @@ public class Template {
 	 * 渲染到 OutputStream 中去
 	 */
 	public void render(Map<?, ?> data, OutputStream outputStream) {
-		ByteWriter byteWriter = env.engineConfig.writerBuffer.getByteWriter(outputStream);
-		try {
+		try (ByteWriter byteWriter = env.engineConfig.writerBuffer.getByteWriter(outputStream)) {
 			ast.exec(env, new Scope(data, env.engineConfig.sharedObjectMap), byteWriter);
-		} finally {
-			byteWriter.close();
 		}
 	}
 	
@@ -73,11 +70,8 @@ public class Template {
 	 * 渲染到 Writer 中去
 	 */
 	public void render(Map<?, ?> data, Writer writer) {
-		CharWriter charWriter = env.engineConfig.writerBuffer.getCharWriter(writer);
-		try {
+		try (CharWriter charWriter = env.engineConfig.writerBuffer.getCharWriter(writer)) {
 			ast.exec(env, new Scope(data, env.engineConfig.sharedObjectMap), charWriter);
-		} finally {
-			charWriter.close();
 		}
 	}
 	
@@ -93,12 +87,9 @@ public class Template {
 	 * 渲染到 String 中去
 	 */
 	public String renderToString(Map<?, ?> data) {
-		FastStringWriter fsw = env.engineConfig.writerBuffer.getFastStringWriter();
-		try {
+		try (FastStringWriter fsw = env.engineConfig.writerBuffer.getFastStringWriter()) {
 			render(data, fsw);
 			return fsw.toString();
-		} finally {
-			fsw.close();
 		}
 	}
 	
@@ -141,6 +132,79 @@ public class Template {
 	
 	public boolean isModified() {
 		return env.isSourceListModified();
+	}
+	
+	// --------------------------------------------------------------------
+	
+	/**
+	 * Func 接口用于接管内部的 Stat ast、Env env、Scope scope 变量
+	 * 实现更加灵活、强大的功能
+	 */
+	@FunctionalInterface
+	public interface Func<T> {
+		void call(Stat ast, Env env, Scope scope, T t);
+	}
+	
+	/**
+	 * 渲染到 String 中去
+	 * 
+	 * Func 接口用于接管内部的 Stat ast、Env env、Scope scope 变量，并且便于
+	 * 向 Ctrl 传入 attachment 参数
+	 * 
+	 * <pre>
+	 * 例子：
+	 *   Map<Object, Object> data = new HashMap<>();
+	 *   data.put("key", 123);
+	 *   
+	 *   String ret = template.renderToString(data, (ast, env, scope, writer) -> {
+	 *      // 可以传入任意类型的 attachment 参数，以下以 Kv 对象为例
+	 *      // 该参数可以在指令中通过 scope.getCtrl().getAttachment() 获取
+	 *      scope.getCtrl().setAttachment(Kv.by("key", 456));
+	 *      
+	 *      // 接管内部的 ast、env、scope、writer，执行 ast.exec(...)
+	 *      ast.exec(env, scope, writer);
+	 *   });
+	 *   
+	 *   System.out.println(ret);
+	 * </pre>
+	 */
+	public String renderToString(Map<?, ?> data, Func<CharWriter> func) {
+		try (FastStringWriter fsw = env.engineConfig.writerBuffer.getFastStringWriter();
+				CharWriter charWriter = env.engineConfig.writerBuffer.getCharWriter(fsw)) {
+			func.call(ast, env, new Scope(data, env.engineConfig.sharedObjectMap), charWriter);
+			return fsw.toString();
+		}
+	}
+	
+	/**
+	 * 渲染到 OutputStream 中去
+	 */
+	public void render(Map<?, ?> data, OutputStream outputStream, Func<ByteWriter> func) {
+		try (ByteWriter byteWriter = env.engineConfig.writerBuffer.getByteWriter(outputStream)) {
+			func.call(ast, env, new Scope(data, env.engineConfig.sharedObjectMap), byteWriter);
+		}
+	}
+	
+	/**
+	 * 渲染到 Writer 中去
+	 */
+	public void render(Map<?, ?> data, Writer writer, Func<CharWriter> func) {
+		try (CharWriter charWriter = env.engineConfig.writerBuffer.getCharWriter(writer)) {
+			func.call(ast, env, new Scope(data, env.engineConfig.sharedObjectMap), charWriter);
+		}
+	}
+	
+	/**
+	 * 渲染到 File 中去
+	 * 适用于代码生成器类似应用场景
+	 */
+	public void render(Map<?, ?> data, File file, Func<ByteWriter> func) {
+		try (FileOutputStream fos = new FileOutputStream(file);
+				ByteWriter byteWriter = env.engineConfig.writerBuffer.getByteWriter(fos)) {
+			func.call(ast, env, new Scope(data, env.engineConfig.sharedObjectMap), byteWriter);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
 

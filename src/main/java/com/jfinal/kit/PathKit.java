@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,7 +123,15 @@ public class PathKit {
 	private static String detectWebRootPath() {
 		try {
 			String path = PathKit.class.getResource("/").toURI().getPath();
-			return new File(path).getParentFile().getParentFile().getCanonicalPath();
+			String ret = new File(path).getParentFile().getParentFile().getCanonicalPath();
+			// 支持 maven 项目在开发环境下探测 webRootPath
+			if (path.endsWith("/target/classes/")) {
+				return ret + "/src/main/webapp";
+			} else if (path.endsWith("\\target\\classes\\")) {
+				return ret + "\\src\\main\\webapp";
+			} else {
+				return ret;
+			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,8 @@ import com.jfinal.upload.UploadFile;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public abstract class Controller {
 	
-	private Action action;
+	// 可通过 CPI.getAction(Controller) 获取
+	Action action;
 	
 	private HttpServletRequest request;
 	private HttpServletResponse response;
@@ -102,8 +103,16 @@ public abstract class Controller {
 		return rawData;
 	}
 	
+	public String getControllerPath() {
+		return action.getControllerPath();
+	}
+	
+	/**
+	 * 该方法已改名为 getControllerPath()
+	 */
+	@Deprecated
 	public String getControllerKey() {
-		return action.getControllerKey();
+		return action.getControllerPath();
 	}
 	
 	public String getViewPath() {
@@ -166,7 +175,7 @@ public abstract class Controller {
 	public String getPara(String name) {
 		// return request.getParameter(name);
 		String result = request.getParameter(name);
-		return "".equals(result) ? null : result;
+		return result != null && result.length() != 0 ? result : null;
 	}
 	
 	/**
@@ -177,7 +186,7 @@ public abstract class Controller {
 	 */
 	public String getPara(String name, String defaultValue) {
 		String result = request.getParameter(name);
-		return result != null && !"".equals(result) ? result : defaultValue;
+		return result != null && result.length() != 0 ? result : defaultValue;
 	}
 	
 	/**
@@ -658,11 +667,11 @@ public abstract class Controller {
 		return doSetCookie(name, null, 0, path, domain, null);
 	}
 	
-	private Controller doSetCookie(String name, String value, int maxAgeInSeconds, String path, String domain, Boolean isHttpOnly) {
+	protected Controller doSetCookie(String name, String value, int maxAgeInSeconds, String path, String domain, Boolean isHttpOnly) {
 		Cookie cookie = new Cookie(name, value);
 		cookie.setMaxAge(maxAgeInSeconds);
 		// set the default path value to "/"
-		if (path == null) {
+		if (StrKit.isBlank(path)) {
 			path = "/";
 		}
 		cookie.setPath(path);
@@ -713,7 +722,7 @@ public abstract class Controller {
 	 */
 	public String getPara(int index, String defaultValue) {
 		String result = getPara(index);
-		return result != null && !"".equals(result) ? result : defaultValue;
+		return result != null && result.length() != 0 ? result : defaultValue;
 	}
 	
 	/**
@@ -967,23 +976,23 @@ public abstract class Controller {
 	 * @param tokenName the token name used in view
 	 * @param secondsOfTimeOut the seconds of time out, secondsOfTimeOut >= Const.MIN_SECONDS_OF_TOKEN_TIME_OUT
 	 */
-	public void createToken(String tokenName, int secondsOfTimeOut) {
-		com.jfinal.token.TokenManager.createToken(this, tokenName, secondsOfTimeOut);
+	public String createToken(String tokenName, int secondsOfTimeOut) {
+		return com.jfinal.token.TokenManager.createToken(this, tokenName, secondsOfTimeOut);
 	}
 	
 	/**
 	 * Create a token with default token name and with default seconds of time out.
 	 */
-	public void createToken() {
-		createToken(Const.DEFAULT_TOKEN_NAME, Const.DEFAULT_SECONDS_OF_TOKEN_TIME_OUT);
+	public String createToken() {
+		return createToken(Const.DEFAULT_TOKEN_NAME, Const.DEFAULT_SECONDS_OF_TOKEN_TIME_OUT);
 	}
 	
 	/**
 	 * Create a token with default seconds of time out.
 	 * @param tokenName the token name used in view
 	 */
-	public void createToken(String tokenName) {
-		createToken(tokenName, Const.DEFAULT_SECONDS_OF_TOKEN_TIME_OUT);
+	public String createToken(String tokenName) {
+		return createToken(tokenName, Const.DEFAULT_SECONDS_OF_TOKEN_TIME_OUT);
 	}
 	
 	/**

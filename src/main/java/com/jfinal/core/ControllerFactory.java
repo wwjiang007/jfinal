@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,22 @@ package com.jfinal.core;
  */
 public class ControllerFactory {
 	
+	protected boolean injectDependency = false;
+	
+	public void setInjectDependency(boolean injectDependency) {
+		this.injectDependency = injectDependency;
+	}
+	
+	public boolean isInjectDependency() {
+		return injectDependency;
+	}
+	
 	public Controller getController(Class<? extends Controller> controllerClass) throws ReflectiveOperationException {
-		return controllerClass.newInstance();
+		Controller ret = controllerClass.newInstance();
+		if (injectDependency) {
+			com.jfinal.aop.Aop.inject(ret);
+		}
+		return ret;
 	}
 	
 	/**

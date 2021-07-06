@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,10 @@ public class MethodKit {
 			RuntimePermission.class, SecurityManager.class, ThreadGroup.class, ThreadLocal.class,
 			
 			java.lang.reflect.Method.class,
-			java.lang.reflect.Proxy.class
+			java.lang.reflect.Proxy.class,
+			java.lang.ProcessBuilder.class,
+			
+			MethodKit.class
 		};
 		for (Class<?> c : cs) {
 			forbiddenClasses.add(c);
@@ -65,7 +68,10 @@ public class MethodKit {
 			"invoke", // "getMethod", "getMethods", // "getField", "getFields",
 			"notify", "notifyAll", "wait",
 			"exit", "loadLibrary", "halt", // "load",
-			"stop", "suspend", "resume" // "setDaemon", "setPriority"
+			"stop", "suspend", "resume", // "setDaemon", "setPriority"
+			
+			"removeForbiddenClass",
+			"removeForbiddenMethod"
 		};
 		for (String m : ms) {
 			forbiddenMethods.add(m);
@@ -264,7 +270,8 @@ public class MethodKit {
 			}
 			
 			// Extension method 第一个参数必须与当前对象的类型一致，在调用时会将当前对象自身传给扩展方法的第一个参数
-			if (targetClass != extensionMethodParaTypes[0]) {
+			// if (targetClass != extensionMethodParaTypes[0]) {
+			if (!extensionMethodParaTypes[0].isAssignableFrom(targetClass)) {	// 支持第一个参数为被扩展类的父类，注意在注册时仍要确切的子类
 				throw new RuntimeException(buildMethodSignatureForException("The first argument type of : " + extensionClass.getName() + ".", methodName, extensionMethodParaTypes) + " must be: " + targetClass.getName());
 			}
 			

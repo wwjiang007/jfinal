@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,21 +26,29 @@ public class CharWriter extends Writer {
 	java.io.Writer out;
 	char[] chars;
 	
+	boolean inUse;	// 支持 reentrant
+	
 	public CharWriter(int bufferSize) {
 		this.chars = new char[bufferSize];
 	}
 	
 	public CharWriter init(java.io.Writer writer) {
+		inUse = true;
 		this.out = writer;
 		return this;
 	}
 	
-	public void flush() throws IOException {
-		out.flush();
+	public void close() {
+		inUse = false;
+		out = null;
 	}
 	
-	public void close() {
-		out = null;
+	public boolean isInUse() {
+		return inUse;
+	}
+	
+	public void flush() throws IOException {
+		out.flush();
 	}
 	
 	public void write(String str, int offset, int len) throws IOException {

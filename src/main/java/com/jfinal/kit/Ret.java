@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,8 +57,10 @@ import com.jfinal.json.Json;
  *   
  * </pre>
  */
-@SuppressWarnings({"serial", "rawtypes", "unchecked"})
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class Ret extends HashMap {
+	
+	private static final long serialVersionUID = -3021472182023759198L;
 	
 	private static final String STATE = "state";
 	private static final String STATE_OK = "ok";
@@ -180,6 +182,16 @@ public class Ret extends HashMap {
 	public Long getLong(Object key) {
 		Number n = (Number)get(key);
 		return n != null ? n.longValue() : null;
+	}
+	
+	public Double getDouble(Object key) {
+		Number n = (Number)get(key);
+		return n != null ? n.doubleValue() : null;
+	}
+	
+	public Float getFloat(Object key) {
+		Number n = (Number)get(key);
+		return n != null ? n.floatValue() : null;
 	}
 	
 	public Number getNumber(Object key) {

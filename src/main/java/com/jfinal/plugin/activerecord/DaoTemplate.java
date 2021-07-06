@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.jfinal.plugin.activerecord;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * DaoTemplate
@@ -53,6 +54,12 @@ public class DaoTemplate<M extends Model> {
 		this.sqlPara = dao.getSqlParaByString(content, paras);
 	}
 	
+	public SqlPara getSqlPara() {
+		return sqlPara;
+	}
+	
+	// ---------
+	
 	public List<M> find() {
 		return dao.find(sqlPara);
 	}
@@ -67,6 +74,12 @@ public class DaoTemplate<M extends Model> {
 	
 	public Page<M> paginate(int pageNumber, int pageSize, boolean isGroupBySql) {
 		return dao.paginate(pageNumber, pageSize, isGroupBySql, sqlPara);
+	}
+	
+	// ---------
+	
+	public void each(Function<M, Boolean> func) {
+		dao.each(func, sqlPara.getSql(), sqlPara.getPara());
 	}
 	
 	// ---------

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -138,7 +138,7 @@ public class JsonRender extends Render {
 			response.setContentType(forIE ? contentTypeForIE : contentType);
 			writer = response.getWriter();
 			writer.write(jsonText);
-			// writer.flush();
+			writer.flush();
 		} catch (IOException e) {
 			throw new RenderException(e);
 		}

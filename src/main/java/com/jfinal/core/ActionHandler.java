@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,17 +33,17 @@ import com.jfinal.render.RenderManager;
 public class ActionHandler extends Handler {
 	
 	protected boolean devMode;
-	protected boolean injectDependency;
 	protected ActionMapping actionMapping;
 	protected ControllerFactory controllerFactory;
+	protected ActionReporter actionReporter;
 	protected static final RenderManager renderManager = RenderManager.me();
 	private static final Log log = Log.getLog(ActionHandler.class);
 	
 	protected void init(ActionMapping actionMapping, Constants constants) {
 		this.actionMapping = actionMapping;
 		this.devMode = constants.getDevMode();
-		this.injectDependency = constants.getInjectDependency();
 		this.controllerFactory = constants.getControllerFactory();
+		this.actionReporter = constants.getActionReporter();
 	}
 	
 	/**
@@ -81,15 +81,14 @@ public class ActionHandler extends Handler {
 		try {
 			// Controller controller = action.getControllerClass().newInstance();
 			controller = controllerFactory.getController(action.getControllerClass());
-			if (injectDependency) {com.jfinal.aop.Aop.inject(controller);}
 			controller._init_(action, request, response, urlPara[0]);
 			
 			if (devMode) {
-				if (ActionReporter.isReportAfterInvocation(request)) {
+				if (actionReporter.isReportAfterInvocation(request)) {
 					new Invocation(action, controller).invoke();
-					ActionReporter.report(target, controller, action);
+					actionReporter.report(target, controller, action);
 				} else {
-					ActionReporter.report(target, controller, action);
+					actionReporter.report(target, controller, action);
 					new Invocation(action, controller).invoke();
 				}
 			}

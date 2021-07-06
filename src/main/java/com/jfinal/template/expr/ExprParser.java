@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,9 +108,9 @@ public class ExprParser {
 	ExprList exprList() {
 		List<Expr> exprList = new ArrayList<Expr>();
 		while (true) {
-			Expr stat = expr();
-			if (stat != null) {
-				exprList.add(stat);
+			Expr expr = expr();
+			if (expr != null) {
+				exprList.add(expr);
 				if (peek().sym == Sym.COMMA) {
 					move();
 					if (peek() == EOF) {

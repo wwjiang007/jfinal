@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.jfinal.template.source;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -139,21 +138,14 @@ public class ClassPathSource implements ISource {
 	}
 	
 	public static StringBuilder loadFile(InputStream inputStream, String encoding) {
-		StringBuilder ret = new StringBuilder();
-		
-		try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, encoding))) {
-			// br = new BufferedReader(new FileReader(fileName));
-			String line = br.readLine();
-			if (line != null) {
-				ret.append(line);
-			} else {
-				return ret;
-			}
-			
-			while ((line=br.readLine()) != null) {
-				ret.append('\n').append(line);
+		try (InputStreamReader isr = new InputStreamReader(inputStream, encoding)) {
+			StringBuilder ret = new StringBuilder();
+			char[] buf = new char[1024];
+			for (int num; (num = isr.read(buf, 0, buf.length)) != -1;) {
+				ret.append(buf, 0, num);
 			}
 			return ret;
+			
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

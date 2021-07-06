@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,16 +94,16 @@ public abstract class FieldKeyBuilder {
 	 */
 	public static class FieldKey {
 		
-		final long classHash;
+		final int classHash;
 		final long fieldHash;
 		
-		public FieldKey(long classHash, long fieldHash) {
+		public FieldKey(int classHash, long fieldHash) {
 			this.classHash = classHash;
 			this.fieldHash = fieldHash;
 		}
 		
 		public int hashCode() {
-			return (int)(classHash ^ fieldHash);
+			return classHash ^ (int)fieldHash;
 		}
 		
 		/**

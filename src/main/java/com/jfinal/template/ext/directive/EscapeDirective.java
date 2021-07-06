@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,8 +47,6 @@ public class EscapeDirective extends Directive {
 					writer.write((Double)value);
 				} else if (c == Float.class) {
 					writer.write((Float)value);
-				} else if (c == Short.class) {
-					writer.write((Short)value);
 				} else {
 					writer.write(value.toString());
 				}

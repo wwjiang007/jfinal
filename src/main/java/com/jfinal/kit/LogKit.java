@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,7 @@ import com.jfinal.log.Log;
  *      与方法信息，LogKit 可以做成通过反射机制来输出类信息与方法信息，但会损失性能
  *      
  *      用户自己的代码中应该使用如下形式来做日志：
- *        Log log = Log.getLog(...);
- *        log.error(...);
+ *        Log.getLog(...).error(...);
  */
 public class LogKit {
 	

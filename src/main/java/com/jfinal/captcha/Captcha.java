@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,13 +74,25 @@ public class Captcha implements Serializable {
 	public String getKey() {
 		return key;
 	}
+
+	public void setKey(String key) {
+		this.key = key;
+	}
 	
 	public String getValue() {
 		return value;
 	}
+
+	public void setValue(String value) {
+		this.value = value;
+	}
 	
 	public long getExpireAt() {
 		return expireAt;
+	}
+
+	public void setExpireAt(long expireAt) {
+		this.expireAt = expireAt;
 	}
 	
 	public boolean isExpired() {

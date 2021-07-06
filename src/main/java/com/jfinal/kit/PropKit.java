@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -218,6 +218,14 @@ public class PropKit {
 	
 	public static Long getLong(String key, Long defaultValue) {
 		return getProp().getLong(key, defaultValue);
+	}
+	
+	public static Double getDouble(String key) {
+		return getProp().getDouble(key);
+	}
+	
+	public static Double getDouble(String key, Double defaultValue) {
+		return getProp().getDouble(key, defaultValue);
 	}
 	
 	public static Boolean getBoolean(String key) {

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.jfinal.kit;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -73,6 +72,9 @@ public class HttpKit {
 	private static final String POST = "POST";
 	private static String CHARSET = "UTF-8";
 	
+	private static int connectTimeout = 19000;	// 连接超时，单位毫秒
+	private static int readTimeout = 19000;		// 读取超时，单位毫秒
+	
 	private static final SSLSocketFactory sslSocketFactory = initSSLSocketFactory();
 	private static final TrustAnyHostnameVerifier trustAnyHostnameVerifier = new HttpKit.TrustAnyHostnameVerifier();
 	
@@ -95,6 +97,14 @@ public class HttpKit {
 		HttpKit.CHARSET = charSet;
 	}
 	
+	public static void setConnectTimeout(int connectTimeout) {
+		HttpKit.connectTimeout = connectTimeout;
+	}
+	
+	public static void setReadTimeout(int readTimeout) {
+		HttpKit.readTimeout = readTimeout;
+	}
+	
 	private static HttpURLConnection getHttpConnection(String url, String method, Map<String, String> headers) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, KeyManagementException {
 		URL _url = new URL(url);
 		HttpURLConnection conn = (HttpURLConnection)_url.openConnection();
@@ -107,8 +117,8 @@ public class HttpKit {
 		conn.setDoOutput(true);
 		conn.setDoInput(true);
 		
-		conn.setConnectTimeout(19000);
-		conn.setReadTimeout(19000);
+		conn.setConnectTimeout(connectTimeout);
+		conn.setReadTimeout(readTimeout);
 		
 		conn.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
 		conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.146 Safari/537.36");
@@ -191,34 +201,16 @@ public class HttpKit {
 	}
 	
 	private static String readResponseString(HttpURLConnection conn) {
-		BufferedReader reader = null;
-		try {
-			StringBuilder ret;
-			reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), CHARSET));
-			String line = reader.readLine();
-			if (line != null) {
-				ret = new StringBuilder();
-				ret.append(line);
-			} else {
-				return "";
-			}
-			
-			while ((line = reader.readLine()) != null) {
-				ret.append('\n').append(line);
+		try (InputStreamReader isr = new InputStreamReader(conn.getInputStream(), CHARSET)) {
+			StringBuilder ret = new StringBuilder();
+			char[] buf = new char[1024];
+			for (int num; (num = isr.read(buf, 0, buf.length)) != -1;) {
+				ret.append(buf, 0, num);
 			}
 			return ret.toString();
-		}
-		catch (Exception e) {
+			
+		} catch (Exception e) {
 			throw new RuntimeException(e);
-		}
-		finally {
-			if (reader != null) {
-				try {
-					reader.close();
-				} catch (IOException e) {
-					LogKit.error(e.getMessage(), e);
-				}
-			}
 		}
 	}
 	
@@ -258,24 +250,16 @@ public class HttpKit {
 	}
 	
 	public static String readData(HttpServletRequest request) {
-		BufferedReader br = null;
 		try {
-			StringBuilder ret;
-			br = request.getReader();
-			
-			String line = br.readLine();
-			if (line != null) {
-				ret = new StringBuilder();
-				ret.append(line);
-			} else {
-				return "";
+			String ce = request.getCharacterEncoding();
+			InputStreamReader isr = new InputStreamReader(request.getInputStream(), ce != null ? ce : CHARSET);
+			StringBuilder ret = new StringBuilder();
+			char[] buf = new char[1024];
+			for (int num; (num = isr.read(buf, 0, buf.length)) != -1;) {
+				ret.append(buf, 0, num);
 			}
-			
-			while ((line = br.readLine()) != null) {
-				ret.append('\n').append(line);
-			}
-			
 			return ret.toString();
+			
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -290,6 +274,20 @@ public class HttpKit {
 	@Deprecated
 	public static String readIncommingRequestData(HttpServletRequest request) {
 		return readData(request);
+	}
+	
+	/**
+	 * 检测是否为 https 请求
+	 * 
+	 * nginx 代理实现 https 的场景，需要对 nginx 进行如下配置：
+	 *     proxy_set_header X-Forwarded-Proto https;
+	 * 或者配置:
+	 *     proxy_set_header X-Forwarded-Proto $scheme;
+	 */
+	public static boolean isHttps(HttpServletRequest request) {
+		return  "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"))
+				||
+				"https".equalsIgnoreCase(request.getScheme());
 	}
 }
 

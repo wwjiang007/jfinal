@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 package com.jfinal.template;
 
 import java.lang.reflect.Method;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import com.jfinal.kit.HashKit;
 import com.jfinal.kit.StrKit;
 import com.jfinal.kit.SyncWriteMap;
@@ -27,10 +29,13 @@ import com.jfinal.template.expr.ast.FieldKeyBuilder;
 import com.jfinal.template.expr.ast.FieldKit;
 import com.jfinal.template.expr.ast.MethodKit;
 import com.jfinal.template.io.EncoderFactory;
+import com.jfinal.template.io.JdkEncoderFactory;
 import com.jfinal.template.source.ClassPathSourceFactory;
 import com.jfinal.template.source.ISource;
 import com.jfinal.template.source.ISourceFactory;
 import com.jfinal.template.source.StringSource;
+import com.jfinal.template.stat.CharTable;
+import com.jfinal.template.stat.Compressor;
 import com.jfinal.template.stat.OutputDirectiveFactory;
 import com.jfinal.template.stat.Parser;
 import com.jfinal.template.stat.ast.Stat;
@@ -57,6 +62,7 @@ public class Engine {
 	
 	private String name;
 	private boolean devMode = false;
+	private boolean cacheStringTemplate = false;
 	private EngineConfig config = new EngineConfig();
 	private ISourceFactory sourceFactory = config.getSourceFactory();
 	
@@ -104,6 +110,32 @@ public class Engine {
 		Engine newEngine = new Engine(engineName);
 		engineMap.put(engineName, newEngine);
 		return newEngine;
+	}
+	
+	/**
+	 * Create engine if absent with engine name managed by JFinal
+	 * <pre>
+	 * Example:
+	 * 	Engine engine = Engine.createIfAbsent("myEngine", e -> {
+	 * 		e.setDevMode(true);
+	 * 		e.setToClassPathSourceFactory();
+	 * 	});
+	 * 
+	 * 	engine.getTemplate("template.html").render(System.out);
+	 * </>
+	 */
+	public static Engine createIfAbsent(String engineName, Consumer<Engine> e) {
+		Engine ret = engineMap.get(engineName);
+		if (ret == null) {
+			synchronized (Engine.class) {
+				ret = engineMap.get(engineName);
+				if (ret == null) {
+					ret = create(engineName);
+					e.accept(ret);
+				}
+			}
+		}
+		return ret;
 	}
 	
 	/**
@@ -170,7 +202,7 @@ public class Engine {
 	 * Get template by string content and do not cache the template
 	 */
 	public Template getTemplateByString(String content) {
-		return getTemplateByString(content, false);
+		return getTemplateByString(content, cacheStringTemplate);
 	}
 	
 	/**
@@ -195,11 +227,29 @@ public class Engine {
 		String cacheKey = HashKit.md5(content);
 		Template template = templateCache.get(cacheKey);
 		if (template == null) {
-			template = buildTemplateBySource(new StringSource(content, cache));
+			template = buildTemplateBySource(new StringSource(content, cacheKey));
 			templateCache.put(cacheKey, template);
 		} else if (devMode) {
 			if (template.isModified()) {
-				template = buildTemplateBySource(new StringSource(content, cache));
+				template = buildTemplateBySource(new StringSource(content, cacheKey));
+				templateCache.put(cacheKey, template);
+			}
+		}
+		return template;
+	}
+	
+	public Template getTemplateByString(String content, String cacheKey) {
+		if (cacheKey == null) {
+			return buildTemplateBySource(new StringSource(content, cacheKey));
+		}
+		
+		Template template = templateCache.get(cacheKey);
+		if (template == null) {
+			template = buildTemplateBySource(new StringSource(content, cacheKey));
+			templateCache.put(cacheKey, template);
+		} else if (devMode) {
+			if (template.isModified()) {
+				template = buildTemplateBySource(new StringSource(content, cacheKey));
 				templateCache.put(cacheKey, template);
 			}
 		}
@@ -282,6 +332,46 @@ public class Engine {
 	public Engine removeSharedObject(String name) {
 		config.removeSharedObject(name);
 		return this;
+	}
+	
+	/**
+	 * 添加枚举类型，便于在模板中使用
+	 * 
+	 * <pre>
+	 * 例子：
+	 * 1：定义枚举类型
+	 * public enum UserType {
+	 * 
+	 *   ADMIN,
+	 *   USER;
+	 *   
+	 *   public String hello() {
+	 *      return "hello";
+	 *   }
+	 * }
+	 * 
+	 * 2：配置
+	 * engine.addEnum(UserType.class);
+	 * 
+	 * 3：模板中使用
+	 * ### 以下的对象 u 通过 Controller 中的 setAttr("u", UserType.ADMIN) 传递
+	 * #if( u == UserType.ADMIN )
+	 *    #(UserType.ADMIN)
+	 *    
+	 *    #(UserType.ADMIN.name())
+	 *    
+	 *    #(UserType.ADMIN.hello())
+	 * #end
+	 * 
+	 * </pre>
+	 */
+	public Engine addEnum(Class<? extends Enum<?>> enumClass) {
+		Map<String, Enum<?>> map = new java.util.LinkedHashMap<>();
+		Enum<?>[] es = enumClass.getEnumConstants();
+		for (Enum<?> e : es) {
+			map.put(e.name(), e);
+		}
+		return addSharedObject(enumClass.getSimpleName(), map);
 	}
 	
 	/**
@@ -426,6 +516,15 @@ public class Engine {
 	}
 	
 	/**
+	 * 配置是否缓存字符串模板，也即是否缓存通过 getTemplateByString(String content)
+	 * 方法获取的模板，默认配置为 false
+	 */
+	public Engine setCacheStringTemplate(boolean cacheStringTemplate) {
+		this.cacheStringTemplate = cacheStringTemplate;
+		return this;
+	}
+	
+	/**
 	 * 设置 ISourceFactory 用于为 engine 切换不同的 ISource 实现类
 	 * ISource 用于从不同的来源加载模板内容
 	 * 
@@ -486,6 +585,14 @@ public class Engine {
 	}
 	
 	/**
+	 * 设置 #number 指令与 Arith 中浮点数的舍入规则，默认为 RoundingMode.HALF_UP "四舍五入"
+	 */
+	public Engine setRoundingMode(RoundingMode roundingMode) {
+		config.setRoundingMode(roundingMode);
+		return this;
+	}
+	
+	/**
 	 * Enjoy 模板引擎对 UTF-8 的 encoding 做过性能优化，某些罕见字符
 	 * 无法被编码，可以配置为 JdkEncoderFactory 解决问题:
 	 * 		engine.setEncoderFactory(new JdkEncoderFactory());
@@ -500,12 +607,46 @@ public class Engine {
 	 * 支持各种罕见字符编码
 	 */
 	public Engine setToJdkEncoderFactory() {
-		config.setEncoderFactory(new com.jfinal.template.io.JdkEncoderFactory());
+		config.setEncoderFactory(new JdkEncoderFactory());
 		return this;
 	}
 	
-	public Engine setWriterBufferSize(int bufferSize) {
-		config.setWriterBufferSize(bufferSize);
+	public Engine setBufferSize(int bufferSize) {
+		config.setBufferSize(bufferSize);
+		return this;
+	}
+	
+	public Engine setReentrantBufferSize(int reentrantBufferSize) {
+		config.setReentrantBufferSize(reentrantBufferSize);
+		return this;
+	}
+	
+	/**
+	 * 设置开启压缩功能
+	 * 
+	 * @param separator 压缩使用的分隔符，常用配置为 '\n' 与 ' '。
+	 *        如果模板中存在 javascript 脚本，需要配置为 '\n'
+	 *        两种配置的压缩率是完全一样的
+	 */
+	public Engine setCompressorOn(char separator) {
+		return setCompressor(new Compressor(separator));
+	}
+	
+	/**
+	 * 设置开启压缩功能。压缩分隔符使用默认值 '\n'
+	 */
+	public Engine setCompressorOn() {
+		return setCompressor(new Compressor());
+	}
+	
+	/**
+	 * 配置 Compressor 可对模板中的静态内容进行压缩
+	 * 
+	 * 可通过该方法配置自定义的 Compressor 来代替系统默认实现，例如：
+	 *   engine.setCompressor(new MyCompressor());
+	 */
+	public Engine setCompressor(Compressor compressor) {
+		config.setCompressor(compressor);
 		return this;
 	}
 	
@@ -585,6 +726,13 @@ public class Engine {
 	public static void setFastMode(boolean fastMode) {
 		FieldKit.setFastMode(fastMode);
 		FieldKeyBuilder.setFastFieldKeyBuilder(fastMode);
+	}
+	
+	/**
+	 * 设置为 true 支持表达式、变量名、方法名、模板函数名使用中文
+	 */
+	public static void setChineseExpression(boolean enable) {
+		CharTable.setChineseExpression(enable);
 	}
 }
 

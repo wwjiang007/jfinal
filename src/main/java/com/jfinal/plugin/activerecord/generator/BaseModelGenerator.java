@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,10 @@ public class BaseModelGenerator {
 		put("java.lang.Float", "getFloat");
 		put("java.lang.Short", "getShort");
 		put("java.lang.Byte", "getByte");
+		
+		// 新增两种可自动转换类型的 getter 方法
+		put("java.util.Date", "getDate");
+		put("java.time.LocalDateTime", "getLocalDateTime");
 	}};
 	
 	public BaseModelGenerator(String baseModelPackageName, String baseModelOutputDir) {

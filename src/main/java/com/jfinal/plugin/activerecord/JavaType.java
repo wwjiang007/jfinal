@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,22 @@ public class JavaType {
 	
 	public Class<?> getType(String typeString) {
 		return strToType.get(typeString);
+	}
+	
+	public void addType(Class<?> type) {
+		strToType.put(type.getName(), type);
+	}
+	
+	public void removeType(Class<?> type) {
+		strToType.remove(type);
+	}
+	
+	public void addTypeMapping(Class<?> from, Class<?> to) {
+		strToType.put(from.getName(), to);
+	}
+	
+	public void addTypeMapping(String from, Class<?> to) {
+		strToType.put(from, to);
 	}
 }
 

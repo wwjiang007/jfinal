@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -189,7 +189,7 @@ public class Invocation {
 	
 	/**
 	 * Return the action key.
-	 * actionKey = controllerKey + methodName
+	 * actionKey = controllerPath + methodName
 	 */
 	public String getActionKey() {
 		if (action == null)
@@ -198,12 +198,20 @@ public class Invocation {
 	}
 	
 	/**
-	 * Return the controller key.
+	 * Return the controller path.
 	 */
-	public String getControllerKey() {
+	public String getControllerPath() {
 		if (action == null)
 			throw new RuntimeException("This method can only be used for action interception");
-		return action.getControllerKey();
+		return action.getControllerPath();
+	}
+	
+	/**
+	 * 该方法已改名为 getControllerPath()
+	 */
+	@Deprecated
+	public String getControllerKey() {
+		return getControllerPath();
 	}
 	
 	/**

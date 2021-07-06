@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2011-2019, James Zhan 詹波 (jfinal@126.com).
+ * Copyright (c) 2011-2021, James Zhan 詹波 (jfinal@126.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,6 +84,23 @@ public abstract class JFinalConfig {
 	public void beforeJFinalStop() {}
 	
 	protected Prop prop = null;
+	
+	/**
+	 * Use the first found properties file
+	 */
+	public Prop useFirstFound(String... fileNames) {
+		for (String fn : fileNames) {
+			try {
+				prop = new Prop(fn, Const.DEFAULT_ENCODING);
+				return prop;
+			} catch (Exception e) {
+				prop = null;
+				continue ;
+			}
+		}
+		
+		throw new IllegalArgumentException("没有配置文件可被使用");
+	}
 	
 	/**
 	 * Load property file.
